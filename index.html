@@ -293,9 +293,14 @@
 
           for (const field of fields) {
             const fieldName = field.getAttribute('Name') || 'Unnamed Field';
-            const polygons = [...field.querySelectorAll('Polygon')];
-            for (const polygon of polygons) {
-              const points = [...polygon.querySelectorAll('Point')]
+            const geometryCandidates = [
+              ...field.querySelectorAll('Polygon, Contour, Shape, Area, Region, Polyline'),
+              ...[...field.querySelectorAll('*')].filter((n) => [...n.children].some((c) => c.tagName === 'Point'))
+            ];
+            const uniqueGeometryCandidates = [...new Set(geometryCandidates)];
+
+            for (const geometryNode of uniqueGeometryCandidates) {
+              const points = [...geometryNode.querySelectorAll('Point')]
                 .map((pt) => ({
                   x: Number(pt.getAttribute('X')),
                   y: Number(pt.getAttribute('Y'))
@@ -303,11 +308,13 @@
                 .filter((pt) => Number.isFinite(pt.x) && Number.isFinite(pt.y));
 
               if (points.length >= 3) {
-                const polygonType = polygon.getAttribute('Type') || 'Unknown';
+                const polygonType = geometryNode.getAttribute('Type') || geometryNode.tagName || 'Unknown';
+                const fieldType = field.getAttribute('Fieldtype') || field.getAttribute('Type') || 'Unknown';
                 extracted.push({
-                  id: `${fieldsetName} :: ${fieldName} :: ${polygonType}`,
+                  id: `${fieldsetName} :: ${fieldName} :: ${fieldType} :: ${polygonType} :: ${points.length}`,
                   fieldsetName,
                   fieldName,
+                  fieldType,
                   polygonType,
                   points,
                   userFieldId: field.getAttribute('UserFieldId') || field.getAttribute('Id') || null
@@ -479,7 +486,7 @@
         }
 
         fields.forEach((f, idx) => {
-          selectEl.append(new Option(`${f.fieldsetName} → ${f.fieldName}`, String(idx)));
+          selectEl.append(new Option(`${f.fieldsetName} → ${f.fieldName} [${f.fieldType} / ${f.polygonType}]`, String(idx)));
         });
 
         selectEl.disabled = false;

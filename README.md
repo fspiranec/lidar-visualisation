@@ -23,6 +23,7 @@ Simple web app for visualising SICK safety fields from pasted XML content.
 - Monitoring case details are shown in a readable multi-line block per lidar/case (instead of one long single-line row).
 - Field parsing now includes all polygon types found under a field (not only `Type="Field"`), so contour-detection polygons can also be rendered when present.
 - Legend is rendered below the canvas (not over the plot), to avoid covering coordinate labels.
+- Field dropdown now shows field type and geometry type (`[Fieldtype / PolygonType]`) so contour entries are visible/selectable directly.
 
 ## Run locally
 
