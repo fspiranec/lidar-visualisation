@@ -172,7 +172,7 @@
             <label><input type="checkbox" class="cutoff-path-check" value="8" checked /> 8</label>
           </div>
         </div>
-        <pre id="caseDetails" style="margin-top:12px; white-space:pre-wrap; background:#0b1225; border:1px solid rgba(148,163,184,0.35); border-radius:10px; padding:10px; color:#cbd5e1;">Monitoring case details will appear here.</pre>
+        <pre id="caseDetails" style="margin-top:12px; white-space:pre-wrap; background:#0b1225; border:1px solid rgba(148,163,184,0.35); border-radius:10px; padding:10px; color:#cbd5e1; font-size:13px; line-height:1.45;">Monitoring case details will appear here.</pre>
       </div>
 
       <div class="card">
@@ -416,6 +416,7 @@
               };
             });
 
+            const normalizeText = (v) => String(v || '').toLowerCase().replace(/\s+/g, ' ').trim();
             const mappedFields = resolvedEntries.flatMap((entry) => {
               const byUserFieldId = lidarFields.filter((f) => String(f.userFieldId || '').trim() === entry.id);
               if (byUserFieldId.length > 0) return byUserFieldId;
@@ -425,7 +426,8 @@
                 const resolvedFieldset = split[0];
                 const resolvedField = split.slice(1).join(' / ');
                 return lidarFields.filter((f) =>
-                  f.fieldsetName.trim() === resolvedFieldset && f.fieldName.trim() === resolvedField
+                  normalizeText(f.fieldsetName) === normalizeText(resolvedFieldset)
+                  && normalizeText(f.fieldName) === normalizeText(resolvedField)
                 );
               }
               return [];
@@ -598,16 +600,8 @@
           svg.append(label);
         });
 
-        const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        title.setAttribute('x', String(margin));
-        title.setAttribute('y', String(margin - 12));
-        title.setAttribute('fill', '#e2e8f0');
-        title.setAttribute('font-size', '16');
-        title.textContent = selectedFields.map((f) => `${f.label}: ${f.fieldsetName} / ${f.fieldName}`).join(' | ');
-        svg.append(title);
-
         const legendX = viewW - 280;
-        const legendY = margin + 10;
+        const legendY = margin;
         const legendBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         legendBg.setAttribute('x', String(legendX - 10));
         legendBg.setAttribute('y', String(legendY - 18));
@@ -936,16 +930,17 @@
           setStatus('Select at least one cut-off path checkbox.', true);
           return;
         }
-        const detailLines = [
-          '| Lidar | CaseNumber | Name | CaseId | DisplayOrder | Cut-off path 1 | Cut-off path 2 | Cut-off path 3 | Cut-off path 4 | Cut-off path 5 | Cut-off path 6 | Cut-off path 7 | Cut-off path 8 |',
-          '|---|---|---|---|---|---|---|---|---|---|---|---|---|'
-        ];
+        const detailLines = [];
         const selectedFields = caseEntries.flatMap((caseEntry) => {
           const getPath = (n) => caseEntry.cutOffPaths.find((p) => new RegExp(`cut-?off path\\s*${n}`, 'i').test(p.name)) || caseEntry.cutOffPaths[n - 1];
           const paths = [1, 2, 3, 4, 5, 6, 7, 8].map(getPath);
-          detailLines.push(
-            `| ${caseEntry.lidarLabel} | ${caseEntry.caseNumber} | ${caseEntry.caseLabel} | ${caseEntry.caseObjectId} | ${caseEntry.displayOrder} | ${paths.map(pathToCell).join(' | ')} |`
-          );
+          detailLines.push(`Lidar: ${caseEntry.lidarLabel}`);
+          detailLines.push(`CaseNumber: ${caseEntry.caseNumber}`);
+          detailLines.push(`Name: ${caseEntry.caseLabel}`);
+          detailLines.push(`CaseId: ${caseEntry.caseObjectId}`);
+          detailLines.push(`DisplayOrder: ${caseEntry.displayOrder}`);
+          paths.forEach((p, i) => detailLines.push(`Cut-off path ${i + 1}: ${pathToCell(p)}`));
+          detailLines.push('---');
 
           const filteredPaths = caseEntry.cutOffPaths.filter((path, idx) => {
             const byName = selectedPathNums.some((n) => new RegExp(`cut-?off path\\s*${n}`, 'i').test(path.name));
