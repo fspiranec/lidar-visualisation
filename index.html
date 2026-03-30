@@ -98,7 +98,7 @@
               <button id="openPasteDialogBtn1" type="button">Paste XML (Rear Left Lidar)</button>
               <button id="importXmlBtn1" type="button">Import XML</button>
             </div>
-            <input id="importXmlInput1" type="file" accept=".xml,.txt,.sdxlm" style="display:none;" />
+            <input id="importXmlInput1" type="file" accept=".xml,.txt,.sdxml,.sdxlm" style="display:none;" />
           </div>
           <div>
             <label for="fieldSelect1">Rear Left Lidar field from list</label>
@@ -114,7 +114,7 @@
               <button id="openPasteDialogBtn2" type="button">Paste XML (Front Right Lidar)</button>
               <button id="importXmlBtn2" type="button">Import XML</button>
             </div>
-            <input id="importXmlInput2" type="file" accept=".xml,.txt,.sdxlm" style="display:none;" />
+            <input id="importXmlInput2" type="file" accept=".xml,.txt,.sdxml,.sdxlm" style="display:none;" />
           </div>
           <div>
             <label for="fieldSelect2">Front Right Lidar field from list (rotate 180° + offset by -1180, -1650)</label>
@@ -142,7 +142,7 @@
               <button id="openCasesDialogBtn1" type="button">Paste cases XML (Rear Left)</button>
               <button id="importCasesBtn1" type="button">Import cases XML</button>
             </div>
-            <input id="importCasesInput1" type="file" accept=".xml,.txt,.sdxlm" style="display:none;" />
+            <input id="importCasesInput1" type="file" accept=".xml,.txt,.casesxml,.sdxlm" style="display:none;" />
           </div>
           <div>
             <label for="openCasesDialogBtn2">Front Right Lidar monitoring cases XML</label>
@@ -150,7 +150,7 @@
               <button id="openCasesDialogBtn2" type="button">Paste cases XML (Front Right)</button>
               <button id="importCasesBtn2" type="button">Import cases XML</button>
             </div>
-            <input id="importCasesInput2" type="file" accept=".xml,.txt,.sdxlm" style="display:none;" />
+            <input id="importCasesInput2" type="file" accept=".xml,.txt,.casesxml,.sdxlm" style="display:none;" />
           </div>
         </div>
         <div style="margin-top:12px;">
@@ -315,13 +315,20 @@
           monitoringCaseSelect.append(new Option('Load monitoring cases first…', ''));
           return;
         }
-        merged
-          .sort((a, b) => String(a.caseNumber).localeCompare(String(b.caseNumber), undefined, { numeric: true }))
-          .forEach((mc) => {
-            const value = `${mc.lidarLabel}::${mc.displayOrder}`;
+        const grouped = new Map();
+        merged.forEach((mc) => {
+          const key = mc.caseNumber ? `CN:${mc.caseNumber}` : `NM:${mc.caseLabel}`;
+          if (!grouped.has(key)) grouped.set(key, []);
+          grouped.get(key).push(mc);
+        });
+        [...grouped.entries()]
+          .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }))
+          .forEach(([key, cases]) => {
+            const primary = cases[0];
+            const lidars = [...new Set(cases.map((c) => c.lidarLabel))].join(' + ');
             monitoringCaseSelect.append(new Option(
-              `${mc.lidarLabel} | Case ${mc.caseNumber} | ${mc.caseLabel} | DisplayOrder ${mc.displayOrder}`,
-              value
+              `Case ${primary.caseNumber} | ${primary.caseLabel} | ${lidars}`,
+              key
             ));
           });
         monitoringCaseSelect.disabled = false;
@@ -383,13 +390,15 @@
               const byUserFieldId = lidarFields.filter((f) => String(f.userFieldId || '').trim() === entry.id);
               if (byUserFieldId.length > 0) return byUserFieldId;
               if (!entry.resolvedName) return [];
-              const [resolvedFieldset, resolvedField] = entry.resolvedName.split('/').map((v) => v.trim());
-              return lidarFields.filter((f) =>
-                f.fieldName === resolvedField
-                || f.fieldName === entry.resolvedName
-                || f.fieldsetName === resolvedFieldset
-                || `${f.fieldsetName} / ${f.fieldName}` === entry.resolvedName
-              );
+              const split = entry.resolvedName.split('/').map((v) => v.trim());
+              if (split.length >= 2) {
+                const resolvedFieldset = split[0];
+                const resolvedField = split.slice(1).join(' / ');
+                return lidarFields.filter((f) =>
+                  f.fieldsetName === resolvedFieldset && f.fieldName === resolvedField
+                );
+              }
+              return lidarFields.filter((f) => f.fieldName === entry.resolvedName);
             });
 
             return {
@@ -828,16 +837,18 @@
       });
 
       renderCaseBtn.addEventListener('click', () => {
-        const selectedValue = monitoringCaseSelect.value;
-        if (!selectedValue) {
+        const selectedKey = monitoringCaseSelect.value;
+        if (!selectedKey) {
           setStatus('Select a monitoring case first.', true);
           return;
         }
-        const [lidarLabel, displayOrder] = selectedValue.split('::');
-        const caseEntry = [...monitoringCases1, ...monitoringCases2].find(
-          (c) => c.lidarLabel === lidarLabel && String(c.displayOrder) === String(displayOrder)
+        const allCases = [...monitoringCases1, ...monitoringCases2];
+        const caseEntries = allCases.filter((c) =>
+          selectedKey.startsWith('CN:')
+            ? `CN:${c.caseNumber}` === selectedKey
+            : `NM:${c.caseLabel}` === selectedKey
         );
-        if (!caseEntry) {
+        if (caseEntries.length === 0) {
           setStatus('Selected monitoring case was not found.', true);
           return;
         }
@@ -848,25 +859,30 @@
             .map((entry) => `${entry.id} = ${entry.resolvedName || 'not found'}`)
             .join('; ');
         };
-        const path1 = caseEntry.cutOffPaths.find((p) => /cut-?off path 1/i.test(p.name)) || caseEntry.cutOffPaths[0];
-        const path2 = caseEntry.cutOffPaths.find((p) => /cut-?off path 2/i.test(p.name)) || caseEntry.cutOffPaths[1];
-        const path3 = caseEntry.cutOffPaths.find((p) => /cut-?off path 3/i.test(p.name)) || caseEntry.cutOffPaths[2];
-        const path4 = caseEntry.cutOffPaths.find((p) => /cut-?off path 4/i.test(p.name)) || caseEntry.cutOffPaths[3];
+        const detailLines = [
+          '| Lidar | CaseNumber | Name | DisplayOrder | Cut-off path 1 | Cut-off path 2 | Cut-off path 3 | Cut-off path 4 |',
+          '|---|---|---|---|---|---|---|---|'
+        ];
+        const selectedFields = caseEntries.flatMap((caseEntry) => {
+          const path1 = caseEntry.cutOffPaths.find((p) => /cut-?off path 1/i.test(p.name)) || caseEntry.cutOffPaths[0];
+          const path2 = caseEntry.cutOffPaths.find((p) => /cut-?off path 2/i.test(p.name)) || caseEntry.cutOffPaths[1];
+          const path3 = caseEntry.cutOffPaths.find((p) => /cut-?off path 3/i.test(p.name)) || caseEntry.cutOffPaths[2];
+          const path4 = caseEntry.cutOffPaths.find((p) => /cut-?off path 4/i.test(p.name)) || caseEntry.cutOffPaths[3];
+          detailLines.push(
+            `| ${caseEntry.lidarLabel} | ${caseEntry.caseNumber} | ${caseEntry.caseLabel} | ${caseEntry.displayOrder} | ${pathToCell(path1)} | ${pathToCell(path2)} | ${pathToCell(path3)} | ${pathToCell(path4)} |`
+          );
 
-        caseDetails.textContent = [
-          '| CaseNumber | Name | DisplayOrder | Cut-off path 1 | Cut-off path 2 | Cut-off path 3 | Cut-off path 4 |',
-          '|---|---|---|---|---|---|---|',
-          `| ${caseEntry.caseNumber} | ${caseEntry.caseLabel} | ${caseEntry.displayOrder} | ${pathToCell(path1)} | ${pathToCell(path2)} | ${pathToCell(path3)} | ${pathToCell(path4)} |`
-        ].join('\n');
+          return caseEntry.cutOffPaths.flatMap((path, pathIndex) =>
+            path.fields.map((field, fieldIndex) => ({
+              ...field,
+              label: `${caseEntry.lidarLabel} - ${path.name} - F${pathIndex + 1}.${fieldIndex + 1}`
+            }))
+          );
+        });
+        caseDetails.textContent = detailLines.join('\n');
 
-        const selectedFields = caseEntry.cutOffPaths.flatMap((path, pathIndex) =>
-          path.fields.map((field, fieldIndex) => ({
-            ...field,
-            label: `${caseEntry.lidarLabel} - ${path.name} - F${pathIndex + 1}.${fieldIndex + 1}`
-          }))
-        );
         if (selectedFields.length === 0) {
-          setStatus(`No matching fields found under selected case for ${caseEntry.lidarLabel}.`, true);
+          setStatus('No matching fields found under selected monitoring case for imported lidar fields.', true);
           return;
         }
         renderField(selectedFields);
