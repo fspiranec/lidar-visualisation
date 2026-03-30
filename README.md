@@ -8,7 +8,9 @@ Simple web app for visualising SICK safety fields from pasted XML content.
 - Parse `Fieldset > Field > Polygon Type="Field"` points.
 - List available fields for each lidar in separate dropdowns.
 - Render one or both selected fields as polygons in one SVG coordinate system.
-- Automatically offset all Lidar 2 points by `(-1180, 1650)` to match real-space placement.
+- Rotate all Lidar 2 points by `180°` and then offset by `(-1180, -1650)` to match real-space placement.
+- Show coordinate labels on every rendered point using the **original, pre-transform** values.
+- Draw lidar locations as yellow 50x50 markers: `rear left lidar` at `(0,0)` and `front right lidar` at `(-1180,-1650)`.
 
 ## Run locally
 
