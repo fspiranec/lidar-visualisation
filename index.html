@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lidar Safety Field Visualiser</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #0f172a;
+        --panel: #111827;
+        --panel-light: #1f2937;
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --accent: #22d3ee;
+      }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        background: linear-gradient(180deg, #0b1022 0%, #10172f 100%);
+        color: var(--text);
+      }
+      .wrap {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      h1 { margin-top: 0; }
+      .card {
+        background: rgba(17, 24, 39, 0.9);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 16px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      label {
+        display: block;
+        font-size: 14px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      input[type="file"], select {
+        width: 100%;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: var(--panel-light);
+        color: var(--text);
+        padding: 10px;
+        border-radius: 10px;
+      }
+      button {
+        padding: 10px 14px;
+        border: 0;
+        border-radius: 10px;
+        background: var(--accent);
+        color: #002732;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .hint { color: var(--muted); font-size: 14px; }
+      .viz {
+        width: 100%;
+        min-height: 560px;
+        background: #020617;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .msg {
+        margin-top: 8px;
+        font-size: 14px;
+        min-height: 20px;
+      }
+      @media (max-width: 760px) {
+        .row { grid-template-columns: 1fr; }
+        .viz { min-height: 420px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Lidar Safety Field Visualiser</h1>
+      <p class="hint">
+        Upload your field XML file (SICK fieldset export), choose one field, and the app will draw the polygon.
+        Monitoring-case mapping can be added next.
+      </p>
+
+      <div class="card">
+        <div class="row">
+          <div>
+            <label for="fieldFile">Safety fields file (.xml)</label>
+            <input id="fieldFile" type="file" accept=".xml,.txt" />
+          </div>
+          <div>
+            <label for="fieldSelect">Field from list</label>
+            <select id="fieldSelect" disabled>
+              <option value="">Upload file first…</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <button id="renderBtn" disabled>Render selected field</button>
+          <span class="hint">Coordinates are shown in mm (auto-scaled to screen).</span>
+        </div>
+        <div class="msg" id="status"></div>
+      </div>
+
+      <div class="card">
+        <svg id="canvas" class="viz" viewBox="0 0 900 600" role="img" aria-label="Field visualisation"></svg>
+      </div>
+    </div>
+
+    <script>
+      const fileInput = document.getElementById('fieldFile');
+      const fieldSelect = document.getElementById('fieldSelect');
+      const renderBtn = document.getElementById('renderBtn');
+      const statusEl = document.getElementById('status');
+      const svg = document.getElementById('canvas');
+
+      let fieldData = [];
+
+      function setStatus(text, isError = false) {
+        statusEl.textContent = text;
+        statusEl.style.color = isError ? '#fda4af' : '#86efac';
+      }
+
+      function parseFields(xmlText) {
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(xmlText, 'application/xml');
+
+        if (xml.querySelector('parsererror')) {
+          throw new Error('Invalid XML format.');
+        }
+
+        const fieldsets = [...xml.querySelectorAll('Fieldset')];
+        const extracted = [];
+
+        for (const fs of fieldsets) {
+          const fieldsetName = fs.getAttribute('Name') || 'Unnamed Fieldset';
+          const fields = [...fs.querySelectorAll(':scope > Field')];
+
+          for (const field of fields) {
+            const fieldName = field.getAttribute('Name') || 'Unnamed Field';
+            const polygon = field.querySelector('Polygon[Type="Field"]');
+            if (!polygon) continue;
+
+            const points = [...polygon.querySelectorAll('Point')]
+              .map((pt) => ({
+                x: Number(pt.getAttribute('X')),
+                y: Number(pt.getAttribute('Y'))
+              }))
+              .filter((pt) => Number.isFinite(pt.x) && Number.isFinite(pt.y));
+
+            if (points.length >= 3) {
+              extracted.push({
+                id: `${fieldsetName} :: ${fieldName}`,
+                fieldsetName,
+                fieldName,
+                points
+              });
+            }
+          }
+        }
+
+        return extracted;
+      }
+
+      function populateSelect(fields) {
+        fieldSelect.innerHTML = '';
+
+        if (fields.length === 0) {
+          fieldSelect.disabled = true;
+          renderBtn.disabled = true;
+          fieldSelect.append(new Option('No valid fields found', ''));
+          return;
+        }
+
+        fields.forEach((f, idx) => {
+          fieldSelect.append(new Option(`${f.fieldsetName} → ${f.fieldName}`, String(idx)));
+        });
+
+        fieldSelect.disabled = false;
+        renderBtn.disabled = false;
+      }
+
+      function renderAxes(viewW, viewH, margin) {
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('opacity', '0.45');
+
+        const axisColor = '#64748b';
+        const h = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        h.setAttribute('x1', margin);
+        h.setAttribute('y1', viewH / 2);
+        h.setAttribute('x2', viewW - margin);
+        h.setAttribute('y2', viewH / 2);
+        h.setAttribute('stroke', axisColor);
+
+        const v = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        v.setAttribute('x1', viewW / 2);
+        v.setAttribute('y1', margin);
+        v.setAttribute('x2', viewW / 2);
+        v.setAttribute('y2', viewH - margin);
+        v.setAttribute('stroke', axisColor);
+
+        g.append(h, v);
+        return g;
+      }
+
+      function renderField(field) {
+        const viewW = 900;
+        const viewH = 600;
+        const margin = 40;
+        svg.innerHTML = '';
+        svg.setAttribute('viewBox', `0 0 ${viewW} ${viewH}`);
+
+        const xs = field.points.map((p) => p.x);
+        const ys = field.points.map((p) => p.y);
+        const minX = Math.min(...xs);
+        const maxX = Math.max(...xs);
+        const minY = Math.min(...ys);
+        const maxY = Math.max(...ys);
+
+        const dataW = Math.max(maxX - minX, 1);
+        const dataH = Math.max(maxY - minY, 1);
+        const scale = Math.min((viewW - margin * 2) / dataW, (viewH - margin * 2) / dataH);
+
+        const mapX = (x) => margin + (x - minX) * scale;
+        const mapY = (y) => viewH - margin - (y - minY) * scale;
+
+        svg.append(renderAxes(viewW, viewH, margin));
+
+        const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        poly.setAttribute('points', field.points.map((p) => `${mapX(p.x)},${mapY(p.y)}`).join(' '));
+        poly.setAttribute('fill', 'rgba(34, 211, 238, 0.25)');
+        poly.setAttribute('stroke', '#22d3ee');
+        poly.setAttribute('stroke-width', '2');
+        svg.append(poly);
+
+        for (const p of field.points) {
+          const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          c.setAttribute('cx', mapX(p.x));
+          c.setAttribute('cy', mapY(p.y));
+          c.setAttribute('r', '3');
+          c.setAttribute('fill', '#f8fafc');
+          svg.append(c);
+        }
+
+        const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        title.setAttribute('x', String(margin));
+        title.setAttribute('y', String(margin - 12));
+        title.setAttribute('fill', '#e2e8f0');
+        title.setAttribute('font-size', '16');
+        title.textContent = `${field.fieldsetName} / ${field.fieldName}`;
+        svg.append(title);
+
+        setStatus(`Rendered "${field.fieldName}" (${field.points.length} points).`);
+      }
+
+      fileInput.addEventListener('change', async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        try {
+          const text = await file.text();
+          fieldData = parseFields(text);
+          populateSelect(fieldData);
+
+          if (fieldData.length > 0) {
+            setStatus(`Loaded ${fieldData.length} field(s). Select one and click Render.`);
+          } else {
+            setStatus('No valid Field polygons found in this file.', true);
+          }
+        } catch (err) {
+          fieldData = [];
+          populateSelect(fieldData);
+          setStatus(err instanceof Error ? err.message : 'Could not read file.', true);
+        }
+      });
+
+      renderBtn.addEventListener('click', () => {
+        const idx = Number(fieldSelect.value);
+        if (!Number.isInteger(idx) || !fieldData[idx]) {
+          setStatus('Please select a valid field.', true);
+          return;
+        }
+
+        renderField(fieldData[idx]);
+      });
+    </script>
+  </body>
+</html>
