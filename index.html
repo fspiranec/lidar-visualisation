@@ -128,6 +128,10 @@
           <button id="renderCaseBtn" type="button" disabled>Render monitoring case</button>
           <button id="measureBtn" type="button" disabled>Measure distance</button>
           <button id="clearMeasureBtn" type="button" disabled>Clear measure</button>
+          <label style="display:flex; align-items:center; gap:6px; font-size:14px; color:#cbd5e1;">
+            <input id="toggleCoords" type="checkbox" checked />
+            Show coordinates
+          </label>
           <span class="hint">Coordinates are shown in mm (auto-scaled to screen).</span>
         </div>
         <div class="msg" id="status"></div>
@@ -177,6 +181,7 @@
 
       <div class="card">
         <svg id="canvas" class="viz" viewBox="0 0 900 600" role="img" aria-label="Field visualisation"></svg>
+        <div id="legendPanel" style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; font-size:13px;"></div>
       </div>
     </div>
 
@@ -243,6 +248,7 @@
       const caseDetails = document.getElementById('caseDetails');
       const measureBtn = document.getElementById('measureBtn');
       const clearMeasureBtn = document.getElementById('clearMeasureBtn');
+      const toggleCoords = document.getElementById('toggleCoords');
       const openCasesDialogBtn1 = document.getElementById('openCasesDialogBtn1');
       const importCasesBtn1 = document.getElementById('importCasesBtn1');
       const importCasesInput1 = document.getElementById('importCasesInput1');
@@ -257,6 +263,7 @@
       const parseCasesBtn2 = document.getElementById('parseCasesBtn2');
       const statusEl = document.getElementById('status');
       const svg = document.getElementById('canvas');
+      const legendPanel = document.getElementById('legendPanel');
 
       const lidar1Location = { x: 0, y: 0, label: 'rear left lidar' };
       const lidar2Offset = { x: -1180, y: -1650 };
@@ -291,24 +298,33 @@
 
           for (const field of fields) {
             const fieldName = field.getAttribute('Name') || 'Unnamed Field';
-            const polygon = field.querySelector('Polygon[Type="Field"]');
-            if (!polygon) continue;
+            const geometryCandidates = [
+              ...field.querySelectorAll('Polygon, Contour, Shape, Area, Region, Polyline'),
+              ...[...field.querySelectorAll('*')].filter((n) => [...n.children].some((c) => c.tagName === 'Point'))
+            ];
+            const uniqueGeometryCandidates = [...new Set(geometryCandidates)];
 
-            const points = [...polygon.querySelectorAll('Point')]
-              .map((pt) => ({
-                x: Number(pt.getAttribute('X')),
-                y: Number(pt.getAttribute('Y'))
-              }))
-              .filter((pt) => Number.isFinite(pt.x) && Number.isFinite(pt.y));
+            for (const geometryNode of uniqueGeometryCandidates) {
+              const points = [...geometryNode.querySelectorAll('Point')]
+                .map((pt) => ({
+                  x: Number(pt.getAttribute('X')),
+                  y: Number(pt.getAttribute('Y'))
+                }))
+                .filter((pt) => Number.isFinite(pt.x) && Number.isFinite(pt.y));
 
-            if (points.length >= 3) {
-              extracted.push({
-                id: `${fieldsetName} :: ${fieldName}`,
-                fieldsetName,
-                fieldName,
-                points,
-                userFieldId: field.getAttribute('UserFieldId') || field.getAttribute('Id') || null
-              });
+              if (points.length >= 3) {
+                const polygonType = geometryNode.getAttribute('Type') || geometryNode.tagName || 'Unknown';
+                const fieldType = field.getAttribute('Fieldtype') || field.getAttribute('Type') || 'Unknown';
+                extracted.push({
+                  id: `${fieldsetName} :: ${fieldName} :: ${fieldType} :: ${polygonType} :: ${points.length}`,
+                  fieldsetName,
+                  fieldName,
+                  fieldType,
+                  polygonType,
+                  points,
+                  userFieldId: field.getAttribute('UserFieldId') || field.getAttribute('Id') || null
+                });
+              }
             }
           }
         }
@@ -475,7 +491,7 @@
         }
 
         fields.forEach((f, idx) => {
-          selectEl.append(new Option(`${f.fieldsetName} → ${f.fieldName}`, String(idx)));
+          selectEl.append(new Option(`${f.fieldsetName} → ${f.fieldName} [${f.fieldType} / ${f.polygonType}]`, String(idx)));
         });
 
         selectEl.disabled = false;
@@ -510,6 +526,7 @@
         const viewH = 600;
         const margin = 40;
         svg.innerHTML = '';
+        legendPanel.innerHTML = '';
         svg.setAttribute('viewBox', `0 0 ${viewW} ${viewH}`);
 
         const allPoints = selectedFields.flatMap((f) => f.points).concat([
@@ -569,14 +586,16 @@
             c.setAttribute('fill', color.point);
             svg.append(c);
 
-            const originalPoint = field.originalPoints?.[pointIdx] || p;
-            const coordText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            coordText.setAttribute('x', String(centeredX(p.x) + 6));
-            coordText.setAttribute('y', String(centeredY(p.y) - 6));
-            coordText.setAttribute('fill', color.point);
-            coordText.setAttribute('font-size', '11');
-            coordText.textContent = `(${originalPoint.x}, ${originalPoint.y})`;
-            svg.append(coordText);
+            if (toggleCoords.checked) {
+              const originalPoint = field.originalPoints?.[pointIdx] || p;
+              const coordText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              coordText.setAttribute('x', String(centeredX(p.x) + 6));
+              coordText.setAttribute('y', String(centeredY(p.y) - 6));
+              coordText.setAttribute('fill', color.point);
+              coordText.setAttribute('font-size', '11');
+              coordText.textContent = `(${originalPoint.x}, ${originalPoint.y})`;
+              svg.append(coordText);
+            }
           }
         });
 
@@ -600,36 +619,25 @@
           svg.append(label);
         });
 
-        const legendX = viewW - 280;
-        const legendY = margin;
-        const legendBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        legendBg.setAttribute('x', String(legendX - 10));
-        legendBg.setAttribute('y', String(legendY - 18));
-        legendBg.setAttribute('width', '265');
-        legendBg.setAttribute('height', String(Math.max(38, selectedFields.length * 18 + 18)));
-        legendBg.setAttribute('fill', 'rgba(15,23,42,0.85)');
-        legendBg.setAttribute('stroke', 'rgba(148,163,184,0.5)');
-        legendBg.setAttribute('rx', '8');
-        svg.append(legendBg);
-
         selectedFields.forEach((field, idx) => {
           const color = palette[idx % palette.length];
-          const y = legendY + idx * 18;
-          const swatch = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-          swatch.setAttribute('x', String(legendX));
-          swatch.setAttribute('y', String(y - 10));
-          swatch.setAttribute('width', '12');
-          swatch.setAttribute('height', '12');
-          swatch.setAttribute('fill', color.stroke);
-          svg.append(swatch);
-
-          const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          txt.setAttribute('x', String(legendX + 18));
-          txt.setAttribute('y', String(y));
-          txt.setAttribute('fill', '#e2e8f0');
-          txt.setAttribute('font-size', '11');
-          txt.textContent = `${field.label}: ${field.fieldName}`;
-          svg.append(txt);
+          const pill = document.createElement('div');
+          pill.style.display = 'flex';
+          pill.style.alignItems = 'center';
+          pill.style.gap = '6px';
+          pill.style.padding = '4px 8px';
+          pill.style.border = '1px solid rgba(148,163,184,0.35)';
+          pill.style.borderRadius = '999px';
+          pill.style.background = 'rgba(15,23,42,0.6)';
+          const dot = document.createElement('span');
+          dot.style.width = '10px';
+          dot.style.height = '10px';
+          dot.style.borderRadius = '999px';
+          dot.style.background = color.stroke;
+          const txt = document.createElement('span');
+          txt.textContent = `${field.label}: ${field.fieldsetName} / ${field.fieldName}${field.polygonType ? ` (${field.polygonType})` : ''}`;
+          pill.append(dot, txt);
+          legendPanel.append(pill);
         });
 
         setStatus(`Rendered ${selectedFields.length} field(s): ${selectedFields.map((f) => f.label).join(', ')}.`);
@@ -866,6 +874,10 @@
         clearMeasurement();
         setMeasureMode(false);
         setStatus('Measurement cleared.');
+      });
+
+      toggleCoords.addEventListener('change', () => {
+        setStatus(`Coordinate labels ${toggleCoords.checked ? 'enabled' : 'hidden'}. Click Render to refresh view.`);
       });
 
       svg.addEventListener('click', (event) => {

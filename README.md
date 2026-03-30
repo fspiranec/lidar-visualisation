@@ -21,6 +21,10 @@ Simple web app for visualising SICK safety fields from pasted XML content.
 - Current parser logic: UI `CaseNumber` is derived as `DisplayOrder + 1`, while Eval linking uses main case object `@Id` (`Eval/Cases/Case[@Id = Case/@Id]`), with fixed static labels `100=PermRed`, `101=PermGreen`, `102=PermGreenWf`.
 - Rendering now centers geometry in the SVG frame, shows an in-canvas color legend (`color -> field name`), and cut-off path filtering is done with checkboxes for paths 1..8.
 - Monitoring case details are shown in a readable multi-line block per lidar/case (instead of one long single-line row).
+- Field parsing now includes all polygon types found under a field (not only `Type="Field"`), so contour-detection polygons can also be rendered when present.
+- Legend is rendered below the canvas (not over the plot), to avoid covering coordinate labels.
+- Field dropdown now shows field type and geometry type (`[Fieldtype / PolygonType]`) so contour entries are visible/selectable directly.
+- You can toggle point coordinate labels on/off via the **Show coordinates** checkbox.
 
 ## Run locally
 
