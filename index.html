@@ -163,7 +163,9 @@
       const statusEl = document.getElementById('status');
       const svg = document.getElementById('canvas');
 
+      const lidar1Location = { x: 0, y: 0, label: 'rear left lidar' };
       const lidar2Offset = { x: -1180, y: -1650 };
+      const lidar2Location = { x: lidar2Offset.x, y: lidar2Offset.y, label: 'front right lidar' };
       let fieldData1 = [];
       let fieldData2 = [];
 
@@ -265,7 +267,10 @@
         svg.innerHTML = '';
         svg.setAttribute('viewBox', `0 0 ${viewW} ${viewH}`);
 
-        const allPoints = selectedFields.flatMap((f) => f.points);
+        const allPoints = selectedFields.flatMap((f) => f.points).concat([
+          { x: lidar1Location.x, y: lidar1Location.y },
+          { x: lidar2Location.x, y: lidar2Location.y }
+        ]);
         const xs = allPoints.map((p) => p.x);
         const ys = allPoints.map((p) => p.y);
         const minX = Math.min(...xs);
@@ -295,14 +300,44 @@
           poly.setAttribute('stroke-width', '2');
           svg.append(poly);
 
-          for (const p of field.points) {
+          for (let pointIdx = 0; pointIdx < field.points.length; pointIdx += 1) {
+            const p = field.points[pointIdx];
             const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             c.setAttribute('cx', mapX(p.x));
             c.setAttribute('cy', mapY(p.y));
             c.setAttribute('r', '3');
             c.setAttribute('fill', palette[idx].point);
             svg.append(c);
+
+            const originalPoint = field.originalPoints?.[pointIdx] || p;
+            const coordText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            coordText.setAttribute('x', String(mapX(p.x) + 6));
+            coordText.setAttribute('y', String(mapY(p.y) - 6));
+            coordText.setAttribute('fill', palette[idx].point);
+            coordText.setAttribute('font-size', '11');
+            coordText.textContent = `(${originalPoint.x}, ${originalPoint.y})`;
+            svg.append(coordText);
           }
+        });
+
+        const lidarMarkers = [lidar1Location, lidar2Location];
+        lidarMarkers.forEach((lidar) => {
+          const marker = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          marker.setAttribute('cx', mapX(lidar.x));
+          marker.setAttribute('cy', mapY(lidar.y));
+          marker.setAttribute('r', '25');
+          marker.setAttribute('fill', 'rgba(250, 204, 21, 0.35)');
+          marker.setAttribute('stroke', '#facc15');
+          marker.setAttribute('stroke-width', '2');
+          svg.append(marker);
+
+          const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          label.setAttribute('x', String(mapX(lidar.x) + 30));
+          label.setAttribute('y', String(mapY(lidar.y)));
+          label.setAttribute('fill', '#fde68a');
+          label.setAttribute('font-size', '13');
+          label.textContent = lidar.label;
+          svg.append(label);
         });
 
         const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -323,6 +358,7 @@
           if (lidarId === 2) {
             fieldData2 = parsedFields.map((f) => ({
               ...f,
+              originalPoints: f.points.map((p) => ({ x: p.x, y: p.y })),
               points: f.points.map((p) => ({
                 x: (-p.x) + lidar2Offset.x,
                 y: (-p.y) + lidar2Offset.y
@@ -330,7 +366,10 @@
             }));
             populateSelect(fieldSelect2, fieldData2, 'No valid fields found');
           } else {
-            fieldData1 = parsedFields;
+            fieldData1 = parsedFields.map((f) => ({
+              ...f,
+              originalPoints: f.points.map((p) => ({ x: p.x, y: p.y }))
+            }));
             populateSelect(fieldSelect1, fieldData1, 'No valid fields found');
           }
 
