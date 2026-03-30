@@ -356,12 +356,17 @@
         if (xml.querySelector('parsererror')) throw new Error('Invalid monitoring cases XML format.');
 
         const lidarFields = lidarLabel === 'Rear Left Lidar' ? fieldData1 : fieldData2;
+        const withFallback = (primarySelector, fallbackSelector) => {
+          const primary = [...xml.querySelectorAll(primarySelector)];
+          if (primary.length > 0) return primary;
+          return [...xml.querySelectorAll(fallbackSelector)];
+        };
         const userFieldNameById = new Map();
         const normalizeId = (v) => String(v ?? '').trim().replace(/^0+(\d)/, '$1');
-        const userFieldsetNodes = [
-          ...xml.querySelectorAll('SdImportExport > FieldsConfiguration > ScanPlanes > ScanPlane > UserFieldsets > UserFieldset'),
-          ...xml.querySelectorAll('FieldsConfiguration ScanPlanes ScanPlane UserFieldsets UserFieldset')
-        ];
+        const userFieldsetNodes = withFallback(
+          'SdImportExport > FieldsConfiguration > ScanPlanes > ScanPlane > UserFieldsets > UserFieldset',
+          'FieldsConfiguration ScanPlanes ScanPlane UserFieldsets UserFieldset'
+        );
         userFieldsetNodes.forEach((fieldset) => {
           const fieldsetName = fieldset.querySelector('Name')?.textContent?.trim() || fieldset.getAttribute('Name') || 'UserFieldset';
           [...fieldset.querySelectorAll('UserFields > UserField')].forEach((userField) => {
@@ -370,23 +375,17 @@
             if (fieldId) userFieldNameById.set(fieldId, `${fieldsetName} / ${fieldName}`);
           });
         });
-        [
-          ...xml.querySelectorAll('SdImportExport > FieldsConfiguration > StatFields > StatField'),
-          ...xml.querySelectorAll('FieldsConfiguration StatFields StatField')
-        ].forEach((statField) => {
+        withFallback(
+          'SdImportExport > FieldsConfiguration > StatFields > StatField',
+          'FieldsConfiguration StatFields StatField'
+        ).forEach((statField) => {
           const fieldId = normalizeId(statField.getAttribute('Id'));
           const fieldName = statField.querySelector('Name')?.textContent?.trim() || statField.getAttribute('Name') || 'StatField';
           if (fieldId) userFieldNameById.set(fieldId, fieldName);
         });
 
-        const mainCases = [
-          ...xml.querySelectorAll('SdImportExport > Cases > Case'),
-          ...xml.querySelectorAll('Cases > Case')
-        ];
-        const evals = [
-          ...xml.querySelectorAll('SdImportExport > Evals > Eval'),
-          ...xml.querySelectorAll('Evals > Eval')
-        ];
+        const mainCases = withFallback('SdImportExport > Cases > Case', 'Cases > Case');
+        const evals = withFallback('SdImportExport > Evals > Eval', 'Evals > Eval');
 
         return mainCases.map((caseNode, idx) => {
           const caseLabel = caseNode.querySelector('Name')?.textContent?.trim() || caseNode.getAttribute('Name') || `Case ${idx + 1}`;
@@ -910,17 +909,19 @@
           return filteredPaths.flatMap((path, pathIndex) =>
             path.fields.map((field, fieldIndex) => ({
               ...field,
-              label: `${caseEntry.lidarLabel} - ${path.name} - F${pathIndex + 1}.${fieldIndex + 1}`
+              label: `${caseEntry.lidarLabel} - ${path.name} - F${pathIndex + 1}.${fieldIndex + 1}`,
+              dedupeKey: `${caseEntry.lidarLabel}::${path.name}::${field.id}`
             }))
           );
         });
+        const uniqueSelectedFields = [...new Map(selectedFields.map((f) => [f.dedupeKey, f])).values()];
         caseDetails.textContent = detailLines.join('\n');
 
-        if (selectedFields.length === 0) {
+        if (uniqueSelectedFields.length === 0) {
           setStatus('No matching fields found under selected monitoring case for imported lidar fields.', true);
           return;
         }
-        renderField(selectedFields);
+        renderField(uniqueSelectedFields);
       });
     </script>
   </body>
