@@ -1,13 +1,14 @@
 # Lidar Visualisation (Safety Fields)
 
-Simple web app for visualising SICK safety fields from an uploaded XML file.
+Simple web app for visualising SICK safety fields from pasted XML content.
 
 ## What it does now
 
-- Upload a safety field XML export.
+- Paste a safety field XML export for Lidar 1 and/or Lidar 2 in built-in dialogs.
 - Parse `Fieldset > Field > Polygon Type="Field"` points.
-- List available fields in a dropdown.
-- Render selected field as a polygon in SVG.
+- List available fields for each lidar in separate dropdowns.
+- Render one or both selected fields as polygons in one SVG coordinate system.
+- Automatically offset all Lidar 2 points by `(-1180, 1650)` to match real-space placement.
 
 ## Run locally
 
