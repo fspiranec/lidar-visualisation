@@ -98,7 +98,7 @@
               <button id="openPasteDialogBtn1" type="button">Paste XML (Rear Left Lidar)</button>
               <button id="importXmlBtn1" type="button">Import XML</button>
             </div>
-            <input id="importXmlInput1" type="file" accept=".xml,.txt" style="display:none;" />
+            <input id="importXmlInput1" type="file" accept=".xml,.txt,.sdxlm" style="display:none;" />
           </div>
           <div>
             <label for="fieldSelect1">Rear Left Lidar field from list</label>
@@ -114,7 +114,7 @@
               <button id="openPasteDialogBtn2" type="button">Paste XML (Front Right Lidar)</button>
               <button id="importXmlBtn2" type="button">Import XML</button>
             </div>
-            <input id="importXmlInput2" type="file" accept=".xml,.txt" style="display:none;" />
+            <input id="importXmlInput2" type="file" accept=".xml,.txt,.sdxlm" style="display:none;" />
           </div>
           <div>
             <label for="fieldSelect2">Front Right Lidar field from list (rotate 180° + offset by -1180, -1650)</label>
@@ -125,11 +125,40 @@
         </div>
         <div style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
           <button id="renderBtn" disabled>Render selected field(s)</button>
+          <button id="renderCaseBtn" type="button" disabled>Render monitoring case</button>
           <button id="measureBtn" type="button" disabled>Measure distance</button>
           <button id="clearMeasureBtn" type="button" disabled>Clear measure</button>
           <span class="hint">Coordinates are shown in mm (auto-scaled to screen).</span>
         </div>
         <div class="msg" id="status"></div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">Monitoring cases</h3>
+        <div class="row">
+          <div>
+            <label for="openCasesDialogBtn1">Rear Left Lidar monitoring cases XML</label>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button id="openCasesDialogBtn1" type="button">Paste cases XML (Rear Left)</button>
+              <button id="importCasesBtn1" type="button">Import cases XML</button>
+            </div>
+            <input id="importCasesInput1" type="file" accept=".xml,.txt,.sdxlm" style="display:none;" />
+          </div>
+          <div>
+            <label for="openCasesDialogBtn2">Front Right Lidar monitoring cases XML</label>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button id="openCasesDialogBtn2" type="button">Paste cases XML (Front Right)</button>
+              <button id="importCasesBtn2" type="button">Import cases XML</button>
+            </div>
+            <input id="importCasesInput2" type="file" accept=".xml,.txt,.sdxlm" style="display:none;" />
+          </div>
+        </div>
+        <div style="margin-top:12px;">
+          <label for="monitoringCaseSelect">Monitoring case list (from both lidars)</label>
+          <select id="monitoringCaseSelect" disabled>
+            <option value="">Load monitoring cases first…</option>
+          </select>
+        </div>
       </div>
 
       <div class="card">
@@ -144,6 +173,26 @@
         <div style="display:flex; gap:10px; justify-content:flex-end;">
           <button value="cancel" style="background:#374151; color:#e5e7eb;" type="submit">Close</button>
           <button id="parsePastedXmlBtn1" value="default" type="button">Parse XML</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="casesDialog1" style="max-width:900px; width:min(900px,95vw); border-radius:12px; border:1px solid rgba(148,163,184,0.35); background:#0b1225; color:#e5e7eb;">
+      <form method="dialog" style="display:flex; flex-direction:column; gap:10px; padding:12px;">
+        <label for="casesInput1">Paste Rear Left monitoring cases XML</label>
+        <textarea id="casesInput1" rows="14" style="width:100%; resize:vertical; border-radius:10px; border:1px solid rgba(148, 163, 184, 0.35); background:#1f2937; color:#e5e7eb; padding:10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;"></textarea>
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+          <button value="cancel" style="background:#374151; color:#e5e7eb;" type="submit">Close</button>
+          <button id="parseCasesBtn1" value="default" type="button">Parse cases XML</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="casesDialog2" style="max-width:900px; width:min(900px,95vw); border-radius:12px; border:1px solid rgba(148,163,184,0.35); background:#0b1225; color:#e5e7eb;">
+      <form method="dialog" style="display:flex; flex-direction:column; gap:10px; padding:12px;">
+        <label for="casesInput2">Paste Front Right monitoring cases XML</label>
+        <textarea id="casesInput2" rows="14" style="width:100%; resize:vertical; border-radius:10px; border:1px solid rgba(148, 163, 184, 0.35); background:#1f2937; color:#e5e7eb; padding:10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;"></textarea>
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+          <button value="cancel" style="background:#374151; color:#e5e7eb;" type="submit">Close</button>
+          <button id="parseCasesBtn2" value="default" type="button">Parse cases XML</button>
         </div>
       </form>
     </dialog>
@@ -174,8 +223,22 @@
       const parsePastedXmlBtn2 = document.getElementById('parsePastedXmlBtn2');
       const fieldSelect2 = document.getElementById('fieldSelect2');
       const renderBtn = document.getElementById('renderBtn');
+      const renderCaseBtn = document.getElementById('renderCaseBtn');
+      const monitoringCaseSelect = document.getElementById('monitoringCaseSelect');
       const measureBtn = document.getElementById('measureBtn');
       const clearMeasureBtn = document.getElementById('clearMeasureBtn');
+      const openCasesDialogBtn1 = document.getElementById('openCasesDialogBtn1');
+      const importCasesBtn1 = document.getElementById('importCasesBtn1');
+      const importCasesInput1 = document.getElementById('importCasesInput1');
+      const casesDialog1 = document.getElementById('casesDialog1');
+      const casesInput1 = document.getElementById('casesInput1');
+      const parseCasesBtn1 = document.getElementById('parseCasesBtn1');
+      const openCasesDialogBtn2 = document.getElementById('openCasesDialogBtn2');
+      const importCasesBtn2 = document.getElementById('importCasesBtn2');
+      const importCasesInput2 = document.getElementById('importCasesInput2');
+      const casesDialog2 = document.getElementById('casesDialog2');
+      const casesInput2 = document.getElementById('casesInput2');
+      const parseCasesBtn2 = document.getElementById('parseCasesBtn2');
       const statusEl = document.getElementById('status');
       const svg = document.getElementById('canvas');
 
@@ -187,6 +250,8 @@
       let currentTransform = null;
       let measureMode = false;
       let measurePoints = [];
+      let monitoringCases1 = [];
+      let monitoringCases2 = [];
 
       function setStatus(text, isError = false) {
         statusEl.textContent = text;
@@ -236,6 +301,85 @@
 
       function refreshRenderButtonState() {
         renderBtn.disabled = fieldData1.length === 0 && fieldData2.length === 0;
+      }
+
+      function refreshMonitoringCaseList() {
+        const merged = [...monitoringCases1, ...monitoringCases2];
+        const caseMap = new Map();
+        merged.forEach((mc) => {
+          const key = mc.caseKey;
+          if (!caseMap.has(key)) caseMap.set(key, []);
+          caseMap.get(key).push(mc);
+        });
+        monitoringCaseSelect.innerHTML = '';
+        if (caseMap.size === 0) {
+          monitoringCaseSelect.disabled = true;
+          renderCaseBtn.disabled = true;
+          monitoringCaseSelect.append(new Option('Load monitoring cases first…', ''));
+          return;
+        }
+        [...caseMap.entries()].sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true })).forEach(([key, items]) => {
+          const labels = [...new Set(items.map((i) => i.caseLabel))].join(' / ');
+          monitoringCaseSelect.append(new Option(`${key} — ${labels}`, key));
+        });
+        monitoringCaseSelect.disabled = false;
+        renderCaseBtn.disabled = false;
+      }
+
+      function parseMonitoringCases(xmlText, lidarLabel) {
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(xmlText, 'application/xml');
+        if (xml.querySelector('parsererror')) throw new Error('Invalid monitoring cases XML format.');
+
+        const lidarFields = lidarLabel === 'Rear Left Lidar' ? fieldData1 : fieldData2;
+        const knownFields = lidarFields.map((f) => f.fieldName);
+        const allElements = [...xml.querySelectorAll('*')];
+        const caseNodes = allElements.filter((el) => {
+          const tagLooksLikeCase = /monitor.*case|^case$/i.test(el.tagName);
+          const hasCaseIdAttribute = [...el.attributes].some((a) => /case.?id|monitoring.?case.?id|^id$|^number$|^no$/i.test(a.name));
+          return tagLooksLikeCase || hasCaseIdAttribute;
+        });
+
+        const caseMap = new Map();
+        caseNodes.forEach((node, idx) => {
+          const attrs = [...node.attributes];
+          const caseIdAttr = attrs.find((a) => /case.?id|monitoring.?case.?id|^id$|^number$|^no$/i.test(a.name));
+          const caseName = node.getAttribute('Name') || node.getAttribute('name') || `Case ${idx + 1}`;
+          const caseIdFromName = (caseName.match(/\b\d+\b/) || [])[0] || '';
+          const caseId = (caseIdAttr?.value || caseIdFromName || String(idx + 1)).trim();
+          const caseKey = `MC-${caseId}`;
+
+          if (!caseMap.has(caseKey)) {
+            caseMap.set(caseKey, {
+              caseKey,
+              caseLabel: caseName,
+              lidarLabel,
+              fields: new Map()
+            });
+          }
+          const caseEntry = caseMap.get(caseKey);
+
+          const searchNodes = [node, ...node.querySelectorAll('*')];
+          searchNodes.forEach((sn) => {
+            const haystacks = [
+              ...[...sn.attributes].map((a) => a.value),
+              sn.textContent || ''
+            ];
+            knownFields.forEach((fieldName) => {
+              if (haystacks.some((text) => text && text.includes(fieldName))) {
+                const fieldObj = lidarFields.find((f) => f.fieldName === fieldName);
+                if (fieldObj) caseEntry.fields.set(fieldObj.id, fieldObj);
+              }
+            });
+          });
+        });
+
+        return [...caseMap.values()].map((entry) => ({
+          caseKey: entry.caseKey,
+          caseLabel: entry.caseLabel,
+          lidarLabel: entry.lidarLabel,
+          fields: [...entry.fields.values()]
+        }));
       }
 
       function clearMeasurement() {
@@ -325,14 +469,18 @@
 
         const palette = [
           { fill: 'rgba(34, 211, 238, 0.25)', stroke: '#22d3ee', point: '#f8fafc' },
-          { fill: 'rgba(250, 204, 21, 0.25)', stroke: '#facc15', point: '#fef9c3' }
+          { fill: 'rgba(250, 204, 21, 0.25)', stroke: '#facc15', point: '#fef9c3' },
+          { fill: 'rgba(192, 132, 252, 0.25)', stroke: '#c084fc', point: '#f3e8ff' },
+          { fill: 'rgba(74, 222, 128, 0.25)', stroke: '#4ade80', point: '#dcfce7' },
+          { fill: 'rgba(251, 146, 60, 0.25)', stroke: '#fb923c', point: '#ffedd5' }
         ];
 
         selectedFields.forEach((field, idx) => {
           const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
           poly.setAttribute('points', field.points.map((p) => `${mapX(p.x)},${mapY(p.y)}`).join(' '));
-          poly.setAttribute('fill', palette[idx].fill);
-          poly.setAttribute('stroke', palette[idx].stroke);
+          const color = palette[idx % palette.length];
+          poly.setAttribute('fill', color.fill);
+          poly.setAttribute('stroke', color.stroke);
           poly.setAttribute('stroke-width', '2');
           svg.append(poly);
 
@@ -342,14 +490,14 @@
             c.setAttribute('cx', mapX(p.x));
             c.setAttribute('cy', mapY(p.y));
             c.setAttribute('r', '3');
-            c.setAttribute('fill', palette[idx].point);
+            c.setAttribute('fill', color.point);
             svg.append(c);
 
             const originalPoint = field.originalPoints?.[pointIdx] || p;
             const coordText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             coordText.setAttribute('x', String(mapX(p.x) + 6));
             coordText.setAttribute('y', String(mapY(p.y) - 6));
-            coordText.setAttribute('fill', palette[idx].point);
+            coordText.setAttribute('fill', color.point);
             coordText.setAttribute('font-size', '11');
             coordText.textContent = `(${originalPoint.x}, ${originalPoint.y})`;
             svg.append(coordText);
@@ -486,8 +634,21 @@
         xmlDialog2.showModal();
       });
 
+      openCasesDialogBtn1.addEventListener('click', () => {
+        casesDialog1.showModal();
+      });
+      openCasesDialogBtn2.addEventListener('click', () => {
+        casesDialog2.showModal();
+      });
+
       importXmlBtn2.addEventListener('click', () => {
         importXmlInput2.click();
+      });
+      importCasesBtn1.addEventListener('click', () => {
+        importCasesInput1.click();
+      });
+      importCasesBtn2.addEventListener('click', () => {
+        importCasesInput2.click();
       });
 
       importXmlInput1.addEventListener('change', async (event) => {
@@ -514,6 +675,60 @@
         } finally {
           importXmlInput2.value = '';
         }
+      });
+
+      importCasesInput1.addEventListener('change', async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        try {
+          const xmlText = await file.text();
+          monitoringCases1 = parseMonitoringCases(xmlText, 'Rear Left Lidar');
+          refreshMonitoringCaseList();
+          setStatus(`Loaded ${monitoringCases1.length} monitoring case(s) for Rear Left Lidar.`);
+        } catch (err) {
+          setStatus(err instanceof Error ? err.message : 'Could not read Rear Left monitoring cases XML.', true);
+        } finally {
+          importCasesInput1.value = '';
+        }
+      });
+
+      importCasesInput2.addEventListener('change', async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        try {
+          const xmlText = await file.text();
+          monitoringCases2 = parseMonitoringCases(xmlText, 'Front Right Lidar');
+          refreshMonitoringCaseList();
+          setStatus(`Loaded ${monitoringCases2.length} monitoring case(s) for Front Right Lidar.`);
+        } catch (err) {
+          setStatus(err instanceof Error ? err.message : 'Could not read Front Right monitoring cases XML.', true);
+        } finally {
+          importCasesInput2.value = '';
+        }
+      });
+
+      parseCasesBtn1.addEventListener('click', () => {
+        const xmlText = casesInput1.value.trim();
+        if (!xmlText) {
+          setStatus('Please paste Rear Left monitoring cases XML before parsing.', true);
+          return;
+        }
+        monitoringCases1 = parseMonitoringCases(xmlText, 'Rear Left Lidar');
+        refreshMonitoringCaseList();
+        casesDialog1.close();
+        setStatus(`Loaded ${monitoringCases1.length} monitoring case(s) for Rear Left Lidar.`);
+      });
+
+      parseCasesBtn2.addEventListener('click', () => {
+        const xmlText = casesInput2.value.trim();
+        if (!xmlText) {
+          setStatus('Please paste Front Right monitoring cases XML before parsing.', true);
+          return;
+        }
+        monitoringCases2 = parseMonitoringCases(xmlText, 'Front Right Lidar');
+        refreshMonitoringCaseList();
+        casesDialog2.close();
+        setStatus(`Loaded ${monitoringCases2.length} monitoring case(s) for Front Right Lidar.`);
       });
 
       parsePastedXmlBtn1.addEventListener('click', () => {
@@ -581,6 +796,26 @@
           return;
         }
 
+        renderField(selectedFields);
+      });
+
+      renderCaseBtn.addEventListener('click', () => {
+        const selectedCaseKey = monitoringCaseSelect.value;
+        if (!selectedCaseKey) {
+          setStatus('Select a monitoring case first.', true);
+          return;
+        }
+        const caseEntries = [...monitoringCases1, ...monitoringCases2].filter((c) => c.caseKey === selectedCaseKey);
+        const selectedFields = caseEntries.flatMap((entry) =>
+          entry.fields.map((field, index) => ({
+            ...field,
+            label: `${entry.lidarLabel} - ${entry.caseLabel} - F${index + 1}`
+          }))
+        );
+        if (selectedFields.length === 0) {
+          setStatus(`No matching fields found for ${selectedCaseKey}. Check field XML imports and monitoring case references.`, true);
+          return;
+        }
         renderField(selectedFields);
       });
     </script>

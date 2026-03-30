@@ -4,7 +4,7 @@ Simple web app for visualising SICK safety fields from pasted XML content.
 
 ## What it does now
 
-- Paste a safety field XML export (or import XML file directly) for **Rear Left Lidar** and/or **Front Right Lidar**.
+- Paste a safety field XML export (or import `.xml/.txt/.sdxlm` file directly) for **Rear Left Lidar** and/or **Front Right Lidar**.
 - Parse `Fieldset > Field > Polygon Type="Field"` points.
 - List available fields for each lidar in separate dropdowns.
 - Render one or both selected fields as polygons in one SVG coordinate system.
@@ -13,6 +13,8 @@ Simple web app for visualising SICK safety fields from pasted XML content.
 - Draw lidar locations as yellow 50x50 markers: `rear left lidar` at `(0,0)` and `front right lidar` at `(-1180,-1650)`.
 - Include a measurement tool: click **Measure distance**, then click any two canvas points to get total distance plus absolute `Δx` and `Δy` in mm.
 - XML imports are parsed client-side only (no file storage/upload backend).
+- Add/paste monitoring cases XML for both lidars, get a merged monitoring-case list, choose a case (e.g. case 33), and render all matched fields from both lidar datasets with different colors.
+- Monitoring-case parsing prioritizes **case ID / number** nodes and searches under each case for field names that match the imported field list.
 
 ## Run locally
 
