@@ -19,6 +19,7 @@ Simple web app for visualising SICK safety fields from pasted XML content.
 - Monitoring case detail panel outputs a markdown table row with `CaseNumber`, `Name`, `DisplayOrder`, and 4 cut-off path cells in the format `UserFieldId = resolved field name` (or `not found`).
 - Monitoring case panel now supports rendering/filtering cut-off paths 1..8 (or all), and output table includes cut-off paths 1..8.
 - Current parser logic: UI `CaseNumber` is derived as `DisplayOrder + 1`, while Eval linking uses main case object `@Id` (`Eval/Cases/Case[@Id = Case/@Id]`), with fixed static labels `100=PermRed`, `101=PermGreen`, `102=PermGreenWf`.
+- Rendering now centers geometry in the SVG frame, shows an in-canvas color legend (`color -> field name`), and cut-off path filtering is done with checkboxes for paths 1..8.
 
 ## Run locally
 

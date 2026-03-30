@@ -160,18 +160,17 @@
           </select>
         </div>
         <div style="margin-top:12px;">
-          <label for="cutoffPathFilter">Cut-off path render filter</label>
-          <select id="cutoffPathFilter">
-            <option value="all">All cut-off paths (1-8)</option>
-            <option value="1">Cut-off path 1</option>
-            <option value="2">Cut-off path 2</option>
-            <option value="3">Cut-off path 3</option>
-            <option value="4">Cut-off path 4</option>
-            <option value="5">Cut-off path 5</option>
-            <option value="6">Cut-off path 6</option>
-            <option value="7">Cut-off path 7</option>
-            <option value="8">Cut-off path 8</option>
-          </select>
+          <label>Cut-off paths to render</label>
+          <div id="cutoffPathChecks" style="display:flex; gap:10px; flex-wrap:wrap; font-size:14px;">
+            <label><input type="checkbox" class="cutoff-path-check" value="1" checked /> 1</label>
+            <label><input type="checkbox" class="cutoff-path-check" value="2" checked /> 2</label>
+            <label><input type="checkbox" class="cutoff-path-check" value="3" checked /> 3</label>
+            <label><input type="checkbox" class="cutoff-path-check" value="4" checked /> 4</label>
+            <label><input type="checkbox" class="cutoff-path-check" value="5" checked /> 5</label>
+            <label><input type="checkbox" class="cutoff-path-check" value="6" checked /> 6</label>
+            <label><input type="checkbox" class="cutoff-path-check" value="7" checked /> 7</label>
+            <label><input type="checkbox" class="cutoff-path-check" value="8" checked /> 8</label>
+          </div>
         </div>
         <pre id="caseDetails" style="margin-top:12px; white-space:pre-wrap; background:#0b1225; border:1px solid rgba(148,163,184,0.35); border-radius:10px; padding:10px; color:#cbd5e1;">Monitoring case details will appear here.</pre>
       </div>
@@ -240,7 +239,7 @@
       const renderBtn = document.getElementById('renderBtn');
       const renderCaseBtn = document.getElementById('renderCaseBtn');
       const monitoringCaseSelect = document.getElementById('monitoringCaseSelect');
-      const cutoffPathFilter = document.getElementById('cutoffPathFilter');
+      const cutoffPathChecks = [...document.querySelectorAll('.cutoff-path-check')];
       const caseDetails = document.getElementById('caseDetails');
       const measureBtn = document.getElementById('measureBtn');
       const clearMeasureBtn = document.getElementById('clearMeasureBtn');
@@ -528,7 +527,13 @@
 
         const mapX = (x) => margin + (x - minX) * scale;
         const mapY = (y) => viewH - margin - (y - minY) * scale;
-        currentTransform = { minX, minY, scale, margin, viewH };
+        const renderedW = dataW * scale;
+        const renderedH = dataH * scale;
+        const centerShiftX = ((viewW - margin * 2) - renderedW) / 2;
+        const centerShiftY = ((viewH - margin * 2) - renderedH) / 2;
+        const centeredX = (x) => mapX(x) + centerShiftX;
+        const centeredY = (y) => mapY(y) - centerShiftY;
+        currentTransform = { minX, minY, scale, margin, viewH, centerShiftX, centerShiftY };
         measureBtn.disabled = false;
         clearMeasureBtn.disabled = false;
         clearMeasurement();
@@ -546,7 +551,7 @@
 
         selectedFields.forEach((field, idx) => {
           const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-          poly.setAttribute('points', field.points.map((p) => `${mapX(p.x)},${mapY(p.y)}`).join(' '));
+          poly.setAttribute('points', field.points.map((p) => `${centeredX(p.x)},${centeredY(p.y)}`).join(' '));
           const color = palette[idx % palette.length];
           poly.setAttribute('fill', color.fill);
           poly.setAttribute('stroke', color.stroke);
@@ -556,16 +561,16 @@
           for (let pointIdx = 0; pointIdx < field.points.length; pointIdx += 1) {
             const p = field.points[pointIdx];
             const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            c.setAttribute('cx', mapX(p.x));
-            c.setAttribute('cy', mapY(p.y));
+            c.setAttribute('cx', centeredX(p.x));
+            c.setAttribute('cy', centeredY(p.y));
             c.setAttribute('r', '3');
             c.setAttribute('fill', color.point);
             svg.append(c);
 
             const originalPoint = field.originalPoints?.[pointIdx] || p;
             const coordText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            coordText.setAttribute('x', String(mapX(p.x) + 6));
-            coordText.setAttribute('y', String(mapY(p.y) - 6));
+            coordText.setAttribute('x', String(centeredX(p.x) + 6));
+            coordText.setAttribute('y', String(centeredY(p.y) - 6));
             coordText.setAttribute('fill', color.point);
             coordText.setAttribute('font-size', '11');
             coordText.textContent = `(${originalPoint.x}, ${originalPoint.y})`;
@@ -576,8 +581,8 @@
         const lidarMarkers = [lidar1Location, lidar2Location];
         lidarMarkers.forEach((lidar) => {
           const marker = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-          marker.setAttribute('cx', mapX(lidar.x));
-          marker.setAttribute('cy', mapY(lidar.y));
+          marker.setAttribute('cx', centeredX(lidar.x));
+          marker.setAttribute('cy', centeredY(lidar.y));
           marker.setAttribute('r', '25');
           marker.setAttribute('fill', 'rgba(250, 204, 21, 0.35)');
           marker.setAttribute('stroke', '#facc15');
@@ -585,8 +590,8 @@
           svg.append(marker);
 
           const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          label.setAttribute('x', String(mapX(lidar.x) + 30));
-          label.setAttribute('y', String(mapY(lidar.y)));
+          label.setAttribute('x', String(centeredX(lidar.x) + 30));
+          label.setAttribute('y', String(centeredY(lidar.y)));
           label.setAttribute('fill', '#fde68a');
           label.setAttribute('font-size', '13');
           label.textContent = lidar.label;
@@ -601,6 +606,38 @@
         title.textContent = selectedFields.map((f) => `${f.label}: ${f.fieldsetName} / ${f.fieldName}`).join(' | ');
         svg.append(title);
 
+        const legendX = viewW - 280;
+        const legendY = margin + 10;
+        const legendBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        legendBg.setAttribute('x', String(legendX - 10));
+        legendBg.setAttribute('y', String(legendY - 18));
+        legendBg.setAttribute('width', '265');
+        legendBg.setAttribute('height', String(Math.max(38, selectedFields.length * 18 + 18)));
+        legendBg.setAttribute('fill', 'rgba(15,23,42,0.85)');
+        legendBg.setAttribute('stroke', 'rgba(148,163,184,0.5)');
+        legendBg.setAttribute('rx', '8');
+        svg.append(legendBg);
+
+        selectedFields.forEach((field, idx) => {
+          const color = palette[idx % palette.length];
+          const y = legendY + idx * 18;
+          const swatch = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          swatch.setAttribute('x', String(legendX));
+          swatch.setAttribute('y', String(y - 10));
+          swatch.setAttribute('width', '12');
+          swatch.setAttribute('height', '12');
+          swatch.setAttribute('fill', color.stroke);
+          svg.append(swatch);
+
+          const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          txt.setAttribute('x', String(legendX + 18));
+          txt.setAttribute('y', String(y));
+          txt.setAttribute('fill', '#e2e8f0');
+          txt.setAttribute('font-size', '11');
+          txt.textContent = `${field.label}: ${field.fieldName}`;
+          svg.append(txt);
+        });
+
         setStatus(`Rendered ${selectedFields.length} field(s): ${selectedFields.map((f) => f.label).join(', ')}.`);
       }
 
@@ -610,8 +647,8 @@
         if (!rect.width || !rect.height) return null;
         const svgX = ((event.clientX - rect.left) / rect.width) * 900;
         const svgY = ((event.clientY - rect.top) / rect.height) * 600;
-        const worldX = currentTransform.minX + (svgX - currentTransform.margin) / currentTransform.scale;
-        const worldY = currentTransform.minY + ((currentTransform.viewH - currentTransform.margin) - svgY) / currentTransform.scale;
+        const worldX = currentTransform.minX + (svgX - currentTransform.margin - currentTransform.centerShiftX) / currentTransform.scale;
+        const worldY = currentTransform.minY + ((currentTransform.viewH - currentTransform.margin - currentTransform.centerShiftY) - svgY) / currentTransform.scale;
         return { x: worldX, y: worldY, svgX, svgY };
       }
 
@@ -891,7 +928,14 @@
             .map((entry) => `${entry.id} = ${entry.resolvedName || 'not found'}`)
             .join('; ');
         };
-        const selectedPathNum = cutoffPathFilter.value === 'all' ? null : Number(cutoffPathFilter.value);
+        const selectedPathNums = cutoffPathChecks
+          .filter((cb) => cb.checked)
+          .map((cb) => Number(cb.value))
+          .filter((n) => Number.isFinite(n));
+        if (selectedPathNums.length === 0) {
+          setStatus('Select at least one cut-off path checkbox.', true);
+          return;
+        }
         const detailLines = [
           '| Lidar | CaseNumber | Name | CaseId | DisplayOrder | Cut-off path 1 | Cut-off path 2 | Cut-off path 3 | Cut-off path 4 | Cut-off path 5 | Cut-off path 6 | Cut-off path 7 | Cut-off path 8 |',
           '|---|---|---|---|---|---|---|---|---|---|---|---|---|'
@@ -904,9 +948,9 @@
           );
 
           const filteredPaths = caseEntry.cutOffPaths.filter((path, idx) => {
-            if (!selectedPathNum) return true;
-            const byName = new RegExp(`cut-?off path\\s*${selectedPathNum}`, 'i').test(path.name);
-            return byName || idx + 1 === selectedPathNum;
+            const byName = selectedPathNums.some((n) => new RegExp(`cut-?off path\\s*${n}`, 'i').test(path.name));
+            const byIndex = selectedPathNums.includes(idx + 1);
+            return byName || byIndex;
           });
 
           return filteredPaths.flatMap((path, pathIndex) =>
