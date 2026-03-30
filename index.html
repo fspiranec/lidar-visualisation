@@ -93,18 +93,30 @@
       <div class="card">
         <div class="row">
           <div>
-            <label for="openPasteDialogBtn">Safety fields XML input</label>
-            <button id="openPasteDialogBtn" type="button">Paste XML</button>
+            <label for="openPasteDialogBtn1">Lidar 1 XML input</label>
+            <button id="openPasteDialogBtn1" type="button">Paste XML (Lidar 1)</button>
           </div>
           <div>
-            <label for="fieldSelect">Field from list</label>
-            <select id="fieldSelect" disabled>
-              <option value="">Paste XML first…</option>
+            <label for="fieldSelect1">Lidar 1 field from list</label>
+            <select id="fieldSelect1" disabled>
+              <option value="">Paste Lidar 1 XML first…</option>
+            </select>
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px;">
+          <div>
+            <label for="openPasteDialogBtn2">Lidar 2 XML input</label>
+            <button id="openPasteDialogBtn2" type="button">Paste XML (Lidar 2)</button>
+          </div>
+          <div>
+            <label for="fieldSelect2">Lidar 2 field from list (offset by -1180, 1650)</label>
+            <select id="fieldSelect2" disabled>
+              <option value="">Paste Lidar 2 XML first…</option>
             </select>
           </div>
         </div>
         <div style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-          <button id="renderBtn" disabled>Render selected field</button>
+          <button id="renderBtn" disabled>Render selected field(s)</button>
           <span class="hint">Coordinates are shown in mm (auto-scaled to screen).</span>
         </div>
         <div class="msg" id="status"></div>
@@ -115,28 +127,45 @@
       </div>
     </div>
 
-    <dialog id="xmlDialog" style="max-width:900px; width:min(900px,95vw); border-radius:12px; border:1px solid rgba(148,163,184,0.35); background:#0b1225; color:#e5e7eb;">
+    <dialog id="xmlDialog1" style="max-width:900px; width:min(900px,95vw); border-radius:12px; border:1px solid rgba(148,163,184,0.35); background:#0b1225; color:#e5e7eb;">
       <form method="dialog" style="display:flex; flex-direction:column; gap:10px; padding:12px;">
-        <label for="xmlInput">Paste XML content</label>
-        <textarea id="xmlInput" rows="14" style="width:100%; resize:vertical; border-radius:10px; border:1px solid rgba(148, 163, 184, 0.35); background:#1f2937; color:#e5e7eb; padding:10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;"></textarea>
+        <label for="xmlInput1">Paste Lidar 1 XML content</label>
+        <textarea id="xmlInput1" rows="14" style="width:100%; resize:vertical; border-radius:10px; border:1px solid rgba(148, 163, 184, 0.35); background:#1f2937; color:#e5e7eb; padding:10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;"></textarea>
         <div style="display:flex; gap:10px; justify-content:flex-end;">
-          <button id="closeDialogBtn" value="cancel" style="background:#374151; color:#e5e7eb;" type="submit">Close</button>
-          <button id="parsePastedXmlBtn" value="default" type="button">Parse XML</button>
+          <button value="cancel" style="background:#374151; color:#e5e7eb;" type="submit">Close</button>
+          <button id="parsePastedXmlBtn1" value="default" type="button">Parse XML</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="xmlDialog2" style="max-width:900px; width:min(900px,95vw); border-radius:12px; border:1px solid rgba(148,163,184,0.35); background:#0b1225; color:#e5e7eb;">
+      <form method="dialog" style="display:flex; flex-direction:column; gap:10px; padding:12px;">
+        <label for="xmlInput2">Paste Lidar 2 XML content</label>
+        <textarea id="xmlInput2" rows="14" style="width:100%; resize:vertical; border-radius:10px; border:1px solid rgba(148, 163, 184, 0.35); background:#1f2937; color:#e5e7eb; padding:10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;"></textarea>
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+          <button value="cancel" style="background:#374151; color:#e5e7eb;" type="submit">Close</button>
+          <button id="parsePastedXmlBtn2" value="default" type="button">Parse XML</button>
         </div>
       </form>
     </dialog>
 
     <script>
-      const openPasteDialogBtn = document.getElementById('openPasteDialogBtn');
-      const xmlDialog = document.getElementById('xmlDialog');
-      const xmlInput = document.getElementById('xmlInput');
-      const parsePastedXmlBtn = document.getElementById('parsePastedXmlBtn');
-      const fieldSelect = document.getElementById('fieldSelect');
+      const openPasteDialogBtn1 = document.getElementById('openPasteDialogBtn1');
+      const xmlDialog1 = document.getElementById('xmlDialog1');
+      const xmlInput1 = document.getElementById('xmlInput1');
+      const parsePastedXmlBtn1 = document.getElementById('parsePastedXmlBtn1');
+      const fieldSelect1 = document.getElementById('fieldSelect1');
+      const openPasteDialogBtn2 = document.getElementById('openPasteDialogBtn2');
+      const xmlDialog2 = document.getElementById('xmlDialog2');
+      const xmlInput2 = document.getElementById('xmlInput2');
+      const parsePastedXmlBtn2 = document.getElementById('parsePastedXmlBtn2');
+      const fieldSelect2 = document.getElementById('fieldSelect2');
       const renderBtn = document.getElementById('renderBtn');
       const statusEl = document.getElementById('status');
       const svg = document.getElementById('canvas');
 
-      let fieldData = [];
+      const lidar2Offset = { x: -1180, y: 1650 };
+      let fieldData1 = [];
+      let fieldData2 = [];
 
       function setStatus(text, isError = false) {
         statusEl.textContent = text;
@@ -184,22 +213,26 @@
         return extracted;
       }
 
-      function populateSelect(fields) {
-        fieldSelect.innerHTML = '';
+      function refreshRenderButtonState() {
+        renderBtn.disabled = fieldData1.length === 0 && fieldData2.length === 0;
+      }
+
+      function populateSelect(selectEl, fields, emptyLabel) {
+        selectEl.innerHTML = '';
 
         if (fields.length === 0) {
-          fieldSelect.disabled = true;
-          renderBtn.disabled = true;
-          fieldSelect.append(new Option('No valid fields found', ''));
+          selectEl.disabled = true;
+          selectEl.append(new Option(emptyLabel, ''));
+          refreshRenderButtonState();
           return;
         }
 
         fields.forEach((f, idx) => {
-          fieldSelect.append(new Option(`${f.fieldsetName} → ${f.fieldName}`, String(idx)));
+          selectEl.append(new Option(`${f.fieldsetName} → ${f.fieldName}`, String(idx)));
         });
 
-        fieldSelect.disabled = false;
-        renderBtn.disabled = false;
+        selectEl.disabled = false;
+        refreshRenderButtonState();
       }
 
       function renderAxes(viewW, viewH, margin) {
@@ -225,15 +258,16 @@
         return g;
       }
 
-      function renderField(field) {
+      function renderField(selectedFields) {
         const viewW = 900;
         const viewH = 600;
         const margin = 40;
         svg.innerHTML = '';
         svg.setAttribute('viewBox', `0 0 ${viewW} ${viewH}`);
 
-        const xs = field.points.map((p) => p.x);
-        const ys = field.points.map((p) => p.y);
+        const allPoints = selectedFields.flatMap((f) => f.points);
+        const xs = allPoints.map((p) => p.x);
+        const ys = allPoints.map((p) => p.y);
         const minX = Math.min(...xs);
         const maxX = Math.max(...xs);
         const minY = Math.min(...ys);
@@ -248,72 +282,118 @@
 
         svg.append(renderAxes(viewW, viewH, margin));
 
-        const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-        poly.setAttribute('points', field.points.map((p) => `${mapX(p.x)},${mapY(p.y)}`).join(' '));
-        poly.setAttribute('fill', 'rgba(34, 211, 238, 0.25)');
-        poly.setAttribute('stroke', '#22d3ee');
-        poly.setAttribute('stroke-width', '2');
-        svg.append(poly);
+        const palette = [
+          { fill: 'rgba(34, 211, 238, 0.25)', stroke: '#22d3ee', point: '#f8fafc' },
+          { fill: 'rgba(250, 204, 21, 0.25)', stroke: '#facc15', point: '#fef9c3' }
+        ];
 
-        for (const p of field.points) {
-          const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-          c.setAttribute('cx', mapX(p.x));
-          c.setAttribute('cy', mapY(p.y));
-          c.setAttribute('r', '3');
-          c.setAttribute('fill', '#f8fafc');
-          svg.append(c);
-        }
+        selectedFields.forEach((field, idx) => {
+          const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+          poly.setAttribute('points', field.points.map((p) => `${mapX(p.x)},${mapY(p.y)}`).join(' '));
+          poly.setAttribute('fill', palette[idx].fill);
+          poly.setAttribute('stroke', palette[idx].stroke);
+          poly.setAttribute('stroke-width', '2');
+          svg.append(poly);
+
+          for (const p of field.points) {
+            const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            c.setAttribute('cx', mapX(p.x));
+            c.setAttribute('cy', mapY(p.y));
+            c.setAttribute('r', '3');
+            c.setAttribute('fill', palette[idx].point);
+            svg.append(c);
+          }
+        });
 
         const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         title.setAttribute('x', String(margin));
         title.setAttribute('y', String(margin - 12));
         title.setAttribute('fill', '#e2e8f0');
         title.setAttribute('font-size', '16');
-        title.textContent = `${field.fieldsetName} / ${field.fieldName}`;
+        title.textContent = selectedFields.map((f) => `${f.label}: ${f.fieldsetName} / ${f.fieldName}`).join(' | ');
         svg.append(title);
 
-        setStatus(`Rendered "${field.fieldName}" (${field.points.length} points).`);
+        setStatus(`Rendered ${selectedFields.length} field(s): ${selectedFields.map((f) => f.label).join(', ')}.`);
       }
 
-      function parseAndLoadXml(text) {
+      function parseAndLoadXml(text, lidarId) {
         try {
-          fieldData = parseFields(text);
-          populateSelect(fieldData);
+          const parsedFields = parseFields(text);
 
-          if (fieldData.length > 0) {
-            setStatus(`Loaded ${fieldData.length} field(s). Select one and click Render.`);
+          if (lidarId === 2) {
+            fieldData2 = parsedFields.map((f) => ({
+              ...f,
+              points: f.points.map((p) => ({ x: p.x + lidar2Offset.x, y: p.y + lidar2Offset.y }))
+            }));
+            populateSelect(fieldSelect2, fieldData2, 'No valid fields found');
           } else {
-            setStatus('No valid Field polygons found in this file.', true);
+            fieldData1 = parsedFields;
+            populateSelect(fieldSelect1, fieldData1, 'No valid fields found');
+          }
+
+          if (parsedFields.length > 0) {
+            setStatus(`Loaded ${parsedFields.length} field(s) from Lidar ${lidarId}.`);
+          } else {
+            setStatus(`No valid Field polygons found in Lidar ${lidarId} XML.`, true);
           }
         } catch (err) {
-          fieldData = [];
-          populateSelect(fieldData);
-          setStatus(err instanceof Error ? err.message : 'Could not read file.', true);
+          if (lidarId === 2) {
+            fieldData2 = [];
+            populateSelect(fieldSelect2, fieldData2, 'No valid fields found');
+          } else {
+            fieldData1 = [];
+            populateSelect(fieldSelect1, fieldData1, 'No valid fields found');
+          }
+          setStatus(err instanceof Error ? `Lidar ${lidarId}: ${err.message}` : `Could not parse Lidar ${lidarId} XML.`, true);
         }
       }
 
-      openPasteDialogBtn.addEventListener('click', () => {
-        xmlDialog.showModal();
+      openPasteDialogBtn1.addEventListener('click', () => {
+        xmlDialog1.showModal();
       });
 
-      parsePastedXmlBtn.addEventListener('click', () => {
-        const pastedXml = xmlInput.value.trim();
+      openPasteDialogBtn2.addEventListener('click', () => {
+        xmlDialog2.showModal();
+      });
+
+      parsePastedXmlBtn1.addEventListener('click', () => {
+        const pastedXml = xmlInput1.value.trim();
         if (!pastedXml) {
-          setStatus('Please paste XML before parsing.', true);
+          setStatus('Please paste Lidar 1 XML before parsing.', true);
           return;
         }
-        parseAndLoadXml(pastedXml);
-        xmlDialog.close();
+        parseAndLoadXml(pastedXml, 1);
+        xmlDialog1.close();
+      });
+
+      parsePastedXmlBtn2.addEventListener('click', () => {
+        const pastedXml = xmlInput2.value.trim();
+        if (!pastedXml) {
+          setStatus('Please paste Lidar 2 XML before parsing.', true);
+          return;
+        }
+        parseAndLoadXml(pastedXml, 2);
+        xmlDialog2.close();
       });
 
       renderBtn.addEventListener('click', () => {
-        const idx = Number(fieldSelect.value);
-        if (!Number.isInteger(idx) || !fieldData[idx]) {
-          setStatus('Please select a valid field.', true);
+        const idx1 = Number(fieldSelect1.value);
+        const idx2 = Number(fieldSelect2.value);
+
+        const selectedFields = [];
+        if (Number.isInteger(idx1) && fieldData1[idx1]) {
+          selectedFields.push({ ...fieldData1[idx1], label: 'Lidar 1' });
+        }
+        if (Number.isInteger(idx2) && fieldData2[idx2]) {
+          selectedFields.push({ ...fieldData2[idx2], label: 'Lidar 2 (offset)' });
+        }
+
+        if (selectedFields.length === 0) {
+          setStatus('Please select at least one valid field (Lidar 1 and/or Lidar 2).', true);
           return;
         }
 
-        renderField(fieldData[idx]);
+        renderField(selectedFields);
       });
     </script>
   </body>
