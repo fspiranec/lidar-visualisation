@@ -334,6 +334,21 @@
         if (xml.querySelector('parsererror')) throw new Error('Invalid monitoring cases XML format.');
 
         const lidarFields = lidarLabel === 'Rear Left Lidar' ? fieldData1 : fieldData2;
+        const userFieldNameById = new Map();
+        [...xml.querySelectorAll('SdImportExport > FieldsConfiguration > ScanPlanes > ScanPlane > UserFieldsets > UserFieldset')].forEach((fieldset) => {
+          const fieldsetName = fieldset.querySelector('Name')?.textContent?.trim() || fieldset.getAttribute('Name') || 'UserFieldset';
+          [...fieldset.querySelectorAll('UserFields > UserField')].forEach((userField) => {
+            const fieldId = userField.getAttribute('Id');
+            const fieldName = userField.querySelector('Name')?.textContent?.trim() || userField.getAttribute('Name') || 'UserField';
+            if (fieldId) userFieldNameById.set(fieldId, `${fieldsetName} / ${fieldName}`);
+          });
+        });
+        [...xml.querySelectorAll('SdImportExport > FieldsConfiguration > StatFields > StatField')].forEach((statField) => {
+          const fieldId = statField.getAttribute('Id');
+          const fieldName = statField.querySelector('Name')?.textContent?.trim() || statField.getAttribute('Name') || 'StatField';
+          if (fieldId) userFieldNameById.set(fieldId, fieldName);
+        });
+
         const mainCases = [...xml.querySelectorAll('SdImportExport > Cases > Case, Cases > Case')];
         const evals = [...xml.querySelectorAll('SdImportExport > Evals > Eval, Evals > Eval')];
 
@@ -356,15 +371,31 @@
                 .filter(Boolean)
             );
 
-            const mappedFields = userFieldIds.flatMap((ufid) => {
-              const byUserFieldId = lidarFields.filter((f) => String(f.userFieldId || '').trim() === ufid);
+            const resolvedEntries = userFieldIds.map((ufid) => {
+              const resolvedName = userFieldNameById.get(ufid) || null;
+              return {
+                id: ufid,
+                resolvedName
+              };
+            });
+
+            const mappedFields = resolvedEntries.flatMap((entry) => {
+              const byUserFieldId = lidarFields.filter((f) => String(f.userFieldId || '').trim() === entry.id);
               if (byUserFieldId.length > 0) return byUserFieldId;
-              return lidarFields.filter((f) => f.fieldName === ufid || f.fieldName.includes(ufid) || ufid.includes(f.fieldName));
+              if (!entry.resolvedName) return [];
+              const [resolvedFieldset, resolvedField] = entry.resolvedName.split('/').map((v) => v.trim());
+              return lidarFields.filter((f) =>
+                f.fieldName === resolvedField
+                || f.fieldName === entry.resolvedName
+                || f.fieldsetName === resolvedFieldset
+                || `${f.fieldsetName} / ${f.fieldName}` === entry.resolvedName
+              );
             });
 
             return {
               name: evalName,
               userFieldIds,
+              resolvedEntries,
               fields: [...new Map(mappedFields.map((f) => [f.id, f])).values()]
             };
           });
@@ -811,21 +842,22 @@
           return;
         }
 
-        const detailsLines = [
-          `Case Number: ${caseEntry.caseNumber}`,
-          `Name: ${caseEntry.caseLabel}`,
-          `DisplayOrder: ${caseEntry.displayOrder}`
-        ];
-        caseEntry.cutOffPaths.forEach((path) => {
-          if (path.userFieldIds.length === 0) {
-            detailsLines.push(`${path.name}: not found`);
-          } else if (path.userFieldIds.length === 1) {
-            detailsLines.push(`${path.name}: UserFieldId ${path.userFieldIds[0]}`);
-          } else {
-            detailsLines.push(`${path.name}: UserFieldId ${path.userFieldIds.join(', ')}`);
-          }
-        });
-        caseDetails.textContent = detailsLines.join('\n');
+        const pathToCell = (path) => {
+          if (!path || path.userFieldIds.length === 0) return 'not found';
+          return path.resolvedEntries
+            .map((entry) => `${entry.id} = ${entry.resolvedName || 'not found'}`)
+            .join('; ');
+        };
+        const path1 = caseEntry.cutOffPaths.find((p) => /cut-?off path 1/i.test(p.name)) || caseEntry.cutOffPaths[0];
+        const path2 = caseEntry.cutOffPaths.find((p) => /cut-?off path 2/i.test(p.name)) || caseEntry.cutOffPaths[1];
+        const path3 = caseEntry.cutOffPaths.find((p) => /cut-?off path 3/i.test(p.name)) || caseEntry.cutOffPaths[2];
+        const path4 = caseEntry.cutOffPaths.find((p) => /cut-?off path 4/i.test(p.name)) || caseEntry.cutOffPaths[3];
+
+        caseDetails.textContent = [
+          '| CaseNumber | Name | DisplayOrder | Cut-off path 1 | Cut-off path 2 | Cut-off path 3 | Cut-off path 4 |',
+          '|---|---|---|---|---|---|---|',
+          `| ${caseEntry.caseNumber} | ${caseEntry.caseLabel} | ${caseEntry.displayOrder} | ${pathToCell(path1)} | ${pathToCell(path2)} | ${pathToCell(path3)} | ${pathToCell(path4)} |`
+        ].join('\n');
 
         const selectedFields = caseEntry.cutOffPaths.flatMap((path, pathIndex) =>
           path.fields.map((field, fieldIndex) => ({

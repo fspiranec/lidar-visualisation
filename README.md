@@ -16,6 +16,7 @@ Simple web app for visualising SICK safety fields from pasted XML content.
 - Add/paste monitoring cases XML for both lidars, get a merged monitoring-case list, choose a case (e.g. case 33), and render all matched fields from both lidar datasets with different colors.
 - Monitoring-case parsing prioritizes **case ID / number** nodes and searches under each case for field names that match the imported field list.
 - Uses SICK `.casesxml` mapping flow: reads `/SdImportExport/Cases/Case` (`Name`, `DisplayOrder`, `Activation/CaseNumber`) and matches eval paths via `/SdImportExport/Evals/Eval/Cases/Case[@Id=DisplayOrder]`, then reads `ScanPlanes/ScanPlane/UserFieldId`.
+- Monitoring case detail panel outputs a markdown table row with `CaseNumber`, `Name`, `DisplayOrder`, and 4 cut-off path cells in the format `UserFieldId = resolved field name` (or `not found`).
 
 ## Run locally
 
