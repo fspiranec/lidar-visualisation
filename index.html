@@ -388,17 +388,16 @@
         const evals = withFallback('SdImportExport > Evals > Eval', 'Evals > Eval');
 
         return mainCases.map((caseNode, idx) => {
+          const caseObjectId = normalizeId(caseNode.getAttribute('Id') || idx);
           const caseLabel = caseNode.querySelector('Name')?.textContent?.trim() || caseNode.getAttribute('Name') || `Case ${idx + 1}`;
           const displayOrder = normalizeId(caseNode.querySelector('DisplayOrder')?.textContent?.trim() || caseNode.getAttribute('DisplayOrder') || String(idx));
-          const caseNumber = caseNode.querySelector('Activation > CaseNumber')?.textContent?.trim()
-            || caseNode.querySelector('CaseNumber')?.textContent?.trim()
-            || caseNode.getAttribute('CaseNumber')
-            || String(idx + 1);
+          const numericDisplayOrder = Number(displayOrder);
+          const caseNumber = Number.isFinite(numericDisplayOrder) ? String(numericDisplayOrder + 1) : String(idx + 1);
 
           const cutOffPaths = evals.map((evalNode) => {
             const evalName = evalNode.querySelector('Name')?.textContent?.trim() || evalNode.getAttribute('Name') || 'Cut-off path';
             const matchingCaseRefs = [...evalNode.querySelectorAll('Cases > Case')]
-              .filter((c) => normalizeId(c.getAttribute('Id')) === displayOrder);
+              .filter((c) => normalizeId(c.getAttribute('Id')) === caseObjectId);
 
             const userFieldIds = matchingCaseRefs.flatMap((c) =>
               [...c.querySelectorAll('ScanPlanes > ScanPlane > UserFieldId')]
@@ -408,7 +407,10 @@
 
             const resolvedEntries = userFieldIds.map((ufidRaw) => {
               const ufid = normalizeId(ufidRaw);
-              const resolvedName = userFieldNameById.get(ufid) || null;
+              const resolvedName = userFieldNameById.get(ufid)
+                || (ufid === '100' ? 'PermRed' : null)
+                || (ufid === '101' ? 'PermGreen' : null)
+                || (ufid === '102' ? 'PermGreenWf' : null);
               return {
                 id: ufid,
                 resolvedName
@@ -427,7 +429,7 @@
                   f.fieldsetName.trim() === resolvedFieldset && f.fieldName.trim() === resolvedField
                 );
               }
-              return lidarFields.filter((f) => f.fieldName.trim() === entry.resolvedName);
+              return [];
             });
 
             return {
@@ -439,6 +441,7 @@
           });
 
           return {
+            caseObjectId,
             caseLabel,
             caseNumber,
             displayOrder,
@@ -890,14 +893,14 @@
         };
         const selectedPathNum = cutoffPathFilter.value === 'all' ? null : Number(cutoffPathFilter.value);
         const detailLines = [
-          '| Lidar | CaseNumber | Name | DisplayOrder | Cut-off path 1 | Cut-off path 2 | Cut-off path 3 | Cut-off path 4 | Cut-off path 5 | Cut-off path 6 | Cut-off path 7 | Cut-off path 8 |',
-          '|---|---|---|---|---|---|---|---|---|---|---|---|'
+          '| Lidar | CaseNumber | Name | CaseId | DisplayOrder | Cut-off path 1 | Cut-off path 2 | Cut-off path 3 | Cut-off path 4 | Cut-off path 5 | Cut-off path 6 | Cut-off path 7 | Cut-off path 8 |',
+          '|---|---|---|---|---|---|---|---|---|---|---|---|---|'
         ];
         const selectedFields = caseEntries.flatMap((caseEntry) => {
           const getPath = (n) => caseEntry.cutOffPaths.find((p) => new RegExp(`cut-?off path\\s*${n}`, 'i').test(p.name)) || caseEntry.cutOffPaths[n - 1];
           const paths = [1, 2, 3, 4, 5, 6, 7, 8].map(getPath);
           detailLines.push(
-            `| ${caseEntry.lidarLabel} | ${caseEntry.caseNumber} | ${caseEntry.caseLabel} | ${caseEntry.displayOrder} | ${paths.map(pathToCell).join(' | ')} |`
+            `| ${caseEntry.lidarLabel} | ${caseEntry.caseNumber} | ${caseEntry.caseLabel} | ${caseEntry.caseObjectId} | ${caseEntry.displayOrder} | ${paths.map(pathToCell).join(' | ')} |`
           );
 
           const filteredPaths = caseEntry.cutOffPaths.filter((path, idx) => {
