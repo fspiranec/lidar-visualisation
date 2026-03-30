@@ -94,7 +94,11 @@
         <div class="row">
           <div>
             <label for="openPasteDialogBtn1">Rear Left Lidar XML input</label>
-            <button id="openPasteDialogBtn1" type="button">Paste XML (Rear Left Lidar)</button>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button id="openPasteDialogBtn1" type="button">Paste XML (Rear Left Lidar)</button>
+              <button id="importXmlBtn1" type="button">Import XML</button>
+            </div>
+            <input id="importXmlInput1" type="file" accept=".xml,.txt" style="display:none;" />
           </div>
           <div>
             <label for="fieldSelect1">Rear Left Lidar field from list</label>
@@ -106,7 +110,11 @@
         <div class="row" style="margin-top:12px;">
           <div>
             <label for="openPasteDialogBtn2">Front Right Lidar XML input</label>
-            <button id="openPasteDialogBtn2" type="button">Paste XML (Front Right Lidar)</button>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button id="openPasteDialogBtn2" type="button">Paste XML (Front Right Lidar)</button>
+              <button id="importXmlBtn2" type="button">Import XML</button>
+            </div>
+            <input id="importXmlInput2" type="file" accept=".xml,.txt" style="display:none;" />
           </div>
           <div>
             <label for="fieldSelect2">Front Right Lidar field from list (rotate 180° + offset by -1180, -1650)</label>
@@ -152,11 +160,15 @@
 
     <script>
       const openPasteDialogBtn1 = document.getElementById('openPasteDialogBtn1');
+      const importXmlBtn1 = document.getElementById('importXmlBtn1');
+      const importXmlInput1 = document.getElementById('importXmlInput1');
       const xmlDialog1 = document.getElementById('xmlDialog1');
       const xmlInput1 = document.getElementById('xmlInput1');
       const parsePastedXmlBtn1 = document.getElementById('parsePastedXmlBtn1');
       const fieldSelect1 = document.getElementById('fieldSelect1');
       const openPasteDialogBtn2 = document.getElementById('openPasteDialogBtn2');
+      const importXmlBtn2 = document.getElementById('importXmlBtn2');
+      const importXmlInput2 = document.getElementById('importXmlInput2');
       const xmlDialog2 = document.getElementById('xmlDialog2');
       const xmlInput2 = document.getElementById('xmlInput2');
       const parsePastedXmlBtn2 = document.getElementById('parsePastedXmlBtn2');
@@ -466,8 +478,42 @@
         xmlDialog1.showModal();
       });
 
+      importXmlBtn1.addEventListener('click', () => {
+        importXmlInput1.click();
+      });
+
       openPasteDialogBtn2.addEventListener('click', () => {
         xmlDialog2.showModal();
+      });
+
+      importXmlBtn2.addEventListener('click', () => {
+        importXmlInput2.click();
+      });
+
+      importXmlInput1.addEventListener('change', async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        try {
+          const xmlText = await file.text();
+          parseAndLoadXml(xmlText, 1);
+        } catch (err) {
+          setStatus(err instanceof Error ? err.message : 'Could not read Rear Left Lidar XML file.', true);
+        } finally {
+          importXmlInput1.value = '';
+        }
+      });
+
+      importXmlInput2.addEventListener('change', async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        try {
+          const xmlText = await file.text();
+          parseAndLoadXml(xmlText, 2);
+        } catch (err) {
+          setStatus(err instanceof Error ? err.message : 'Could not read Front Right Lidar XML file.', true);
+        } finally {
+          importXmlInput2.value = '';
+        }
       });
 
       parsePastedXmlBtn1.addEventListener('click', () => {
