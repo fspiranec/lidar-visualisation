@@ -4,7 +4,7 @@ Simple web app for visualising SICK safety fields from pasted XML content.
 
 ## What it does now
 
-- Paste a safety field XML export (or import `.xml/.txt/.sdxlm` file directly) for **Rear Left Lidar** and/or **Front Right Lidar**.
+- Paste a safety field XML export (or import `.xml/.txt/.sdxml/.sdxlm` file directly) for **Rear Left Lidar** and/or **Front Right Lidar**.
 - Parse `Fieldset > Field > Polygon Type="Field"` points.
 - List available fields for each lidar in separate dropdowns.
 - Render one or both selected fields as polygons in one SVG coordinate system.
@@ -13,8 +13,14 @@ Simple web app for visualising SICK safety fields from pasted XML content.
 - Draw lidar locations as yellow 50x50 markers: `rear left lidar` at `(0,0)` and `front right lidar` at `(-1180,-1650)`.
 - Include a measurement tool: click **Measure distance**, then click any two canvas points to get total distance plus absolute `Δx` and `Δy` in mm.
 - XML imports are parsed client-side only (no file storage/upload backend).
-- Add/paste monitoring cases XML for both lidars, get a merged monitoring-case list, choose a case (e.g. case 33), and render all matched fields from both lidar datasets with different colors.
+- Add/paste monitoring cases XML for both lidars (supports `.casesxml`), choose a monitoring case once, and render matched fields from both lidar datasets for that same case number/name.
 - Monitoring-case parsing prioritizes **case ID / number** nodes and searches under each case for field names that match the imported field list.
+- Uses SICK `.casesxml` mapping flow: reads `/SdImportExport/Cases/Case` (`Name`, `DisplayOrder`, `Activation/CaseNumber`) and matches eval paths via `/SdImportExport/Evals/Eval/Cases/Case[@Id=DisplayOrder]`, then reads `ScanPlanes/ScanPlane/UserFieldId`.
+- Monitoring case detail panel outputs a markdown table row with `CaseNumber`, `Name`, `DisplayOrder`, and 4 cut-off path cells in the format `UserFieldId = resolved field name` (or `not found`).
+- Monitoring case panel now supports rendering/filtering cut-off paths 1..8 (or all), and output table includes cut-off paths 1..8.
+- Current parser logic: UI `CaseNumber` is derived as `DisplayOrder + 1`, while Eval linking uses main case object `@Id` (`Eval/Cases/Case[@Id = Case/@Id]`), with fixed static labels `100=PermRed`, `101=PermGreen`, `102=PermGreenWf`.
+- Rendering now centers geometry in the SVG frame, shows an in-canvas color legend (`color -> field name`), and cut-off path filtering is done with checkboxes for paths 1..8.
+- Monitoring case details are shown in a readable multi-line block per lidar/case (instead of one long single-line row).
 
 ## Run locally
 

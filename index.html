@@ -98,7 +98,7 @@
               <button id="openPasteDialogBtn1" type="button">Paste XML (Rear Left Lidar)</button>
               <button id="importXmlBtn1" type="button">Import XML</button>
             </div>
-            <input id="importXmlInput1" type="file" accept=".xml,.txt,.sdxlm" style="display:none;" />
+            <input id="importXmlInput1" type="file" accept=".xml,.txt,.sdxml,.sdxlm" style="display:none;" />
           </div>
           <div>
             <label for="fieldSelect1">Rear Left Lidar field from list</label>
@@ -114,7 +114,7 @@
               <button id="openPasteDialogBtn2" type="button">Paste XML (Front Right Lidar)</button>
               <button id="importXmlBtn2" type="button">Import XML</button>
             </div>
-            <input id="importXmlInput2" type="file" accept=".xml,.txt,.sdxlm" style="display:none;" />
+            <input id="importXmlInput2" type="file" accept=".xml,.txt,.sdxml,.sdxlm" style="display:none;" />
           </div>
           <div>
             <label for="fieldSelect2">Front Right Lidar field from list (rotate 180° + offset by -1180, -1650)</label>
@@ -142,7 +142,7 @@
               <button id="openCasesDialogBtn1" type="button">Paste cases XML (Rear Left)</button>
               <button id="importCasesBtn1" type="button">Import cases XML</button>
             </div>
-            <input id="importCasesInput1" type="file" accept=".xml,.txt,.sdxlm" style="display:none;" />
+            <input id="importCasesInput1" type="file" accept=".xml,.txt,.casesxml,.sdxlm" style="display:none;" />
           </div>
           <div>
             <label for="openCasesDialogBtn2">Front Right Lidar monitoring cases XML</label>
@@ -150,7 +150,7 @@
               <button id="openCasesDialogBtn2" type="button">Paste cases XML (Front Right)</button>
               <button id="importCasesBtn2" type="button">Import cases XML</button>
             </div>
-            <input id="importCasesInput2" type="file" accept=".xml,.txt,.sdxlm" style="display:none;" />
+            <input id="importCasesInput2" type="file" accept=".xml,.txt,.casesxml,.sdxlm" style="display:none;" />
           </div>
         </div>
         <div style="margin-top:12px;">
@@ -159,6 +159,20 @@
             <option value="">Load monitoring cases first…</option>
           </select>
         </div>
+        <div style="margin-top:12px;">
+          <label>Cut-off paths to render</label>
+          <div id="cutoffPathChecks" style="display:flex; gap:10px; flex-wrap:wrap; font-size:14px;">
+            <label><input type="checkbox" class="cutoff-path-check" value="1" checked /> 1</label>
+            <label><input type="checkbox" class="cutoff-path-check" value="2" checked /> 2</label>
+            <label><input type="checkbox" class="cutoff-path-check" value="3" checked /> 3</label>
+            <label><input type="checkbox" class="cutoff-path-check" value="4" checked /> 4</label>
+            <label><input type="checkbox" class="cutoff-path-check" value="5" checked /> 5</label>
+            <label><input type="checkbox" class="cutoff-path-check" value="6" checked /> 6</label>
+            <label><input type="checkbox" class="cutoff-path-check" value="7" checked /> 7</label>
+            <label><input type="checkbox" class="cutoff-path-check" value="8" checked /> 8</label>
+          </div>
+        </div>
+        <pre id="caseDetails" style="margin-top:12px; white-space:pre-wrap; background:#0b1225; border:1px solid rgba(148,163,184,0.35); border-radius:10px; padding:10px; color:#cbd5e1; font-size:13px; line-height:1.45;">Monitoring case details will appear here.</pre>
       </div>
 
       <div class="card">
@@ -225,6 +239,8 @@
       const renderBtn = document.getElementById('renderBtn');
       const renderCaseBtn = document.getElementById('renderCaseBtn');
       const monitoringCaseSelect = document.getElementById('monitoringCaseSelect');
+      const cutoffPathChecks = [...document.querySelectorAll('.cutoff-path-check')];
+      const caseDetails = document.getElementById('caseDetails');
       const measureBtn = document.getElementById('measureBtn');
       const clearMeasureBtn = document.getElementById('clearMeasureBtn');
       const openCasesDialogBtn1 = document.getElementById('openCasesDialogBtn1');
@@ -290,7 +306,8 @@
                 id: `${fieldsetName} :: ${fieldName}`,
                 fieldsetName,
                 fieldName,
-                points
+                points,
+                userFieldId: field.getAttribute('UserFieldId') || field.getAttribute('Id') || null
               });
             }
           }
@@ -305,23 +322,29 @@
 
       function refreshMonitoringCaseList() {
         const merged = [...monitoringCases1, ...monitoringCases2];
-        const caseMap = new Map();
-        merged.forEach((mc) => {
-          const key = mc.caseKey;
-          if (!caseMap.has(key)) caseMap.set(key, []);
-          caseMap.get(key).push(mc);
-        });
         monitoringCaseSelect.innerHTML = '';
-        if (caseMap.size === 0) {
+        if (merged.length === 0) {
           monitoringCaseSelect.disabled = true;
           renderCaseBtn.disabled = true;
           monitoringCaseSelect.append(new Option('Load monitoring cases first…', ''));
           return;
         }
-        [...caseMap.entries()].sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true })).forEach(([key, items]) => {
-          const labels = [...new Set(items.map((i) => i.caseLabel))].join(' / ');
-          monitoringCaseSelect.append(new Option(`${key} — ${labels}`, key));
+        const grouped = new Map();
+        merged.forEach((mc) => {
+          const key = mc.caseNumber ? `CN:${mc.caseNumber}` : `NM:${mc.caseLabel}`;
+          if (!grouped.has(key)) grouped.set(key, []);
+          grouped.get(key).push(mc);
         });
+        [...grouped.entries()]
+          .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }))
+          .forEach(([key, cases]) => {
+            const primary = cases[0];
+            const lidars = [...new Set(cases.map((c) => c.lidarLabel))].join(' + ');
+            monitoringCaseSelect.append(new Option(
+              `Case ${primary.caseNumber} | ${primary.caseLabel} | ${lidars}`,
+              key
+            ));
+          });
         monitoringCaseSelect.disabled = false;
         renderCaseBtn.disabled = false;
       }
@@ -332,54 +355,101 @@
         if (xml.querySelector('parsererror')) throw new Error('Invalid monitoring cases XML format.');
 
         const lidarFields = lidarLabel === 'Rear Left Lidar' ? fieldData1 : fieldData2;
-        const knownFields = lidarFields.map((f) => f.fieldName);
-        const allElements = [...xml.querySelectorAll('*')];
-        const caseNodes = allElements.filter((el) => {
-          const tagLooksLikeCase = /monitor.*case|^case$/i.test(el.tagName);
-          const hasCaseIdAttribute = [...el.attributes].some((a) => /case.?id|monitoring.?case.?id|^id$|^number$|^no$/i.test(a.name));
-          return tagLooksLikeCase || hasCaseIdAttribute;
-        });
-
-        const caseMap = new Map();
-        caseNodes.forEach((node, idx) => {
-          const attrs = [...node.attributes];
-          const caseIdAttr = attrs.find((a) => /case.?id|monitoring.?case.?id|^id$|^number$|^no$/i.test(a.name));
-          const caseName = node.getAttribute('Name') || node.getAttribute('name') || `Case ${idx + 1}`;
-          const caseIdFromName = (caseName.match(/\b\d+\b/) || [])[0] || '';
-          const caseId = (caseIdAttr?.value || caseIdFromName || String(idx + 1)).trim();
-          const caseKey = `MC-${caseId}`;
-
-          if (!caseMap.has(caseKey)) {
-            caseMap.set(caseKey, {
-              caseKey,
-              caseLabel: caseName,
-              lidarLabel,
-              fields: new Map()
-            });
-          }
-          const caseEntry = caseMap.get(caseKey);
-
-          const searchNodes = [node, ...node.querySelectorAll('*')];
-          searchNodes.forEach((sn) => {
-            const haystacks = [
-              ...[...sn.attributes].map((a) => a.value),
-              sn.textContent || ''
-            ];
-            knownFields.forEach((fieldName) => {
-              if (haystacks.some((text) => text && text.includes(fieldName))) {
-                const fieldObj = lidarFields.find((f) => f.fieldName === fieldName);
-                if (fieldObj) caseEntry.fields.set(fieldObj.id, fieldObj);
-              }
-            });
+        const withFallback = (primarySelector, fallbackSelector) => {
+          const primary = [...xml.querySelectorAll(primarySelector)];
+          if (primary.length > 0) return primary;
+          return [...xml.querySelectorAll(fallbackSelector)];
+        };
+        const userFieldNameById = new Map();
+        const normalizeId = (v) => String(v ?? '').trim().replace(/^0+(\d)/, '$1');
+        const userFieldsetNodes = withFallback(
+          'SdImportExport > FieldsConfiguration > ScanPlanes > ScanPlane > UserFieldsets > UserFieldset',
+          'FieldsConfiguration ScanPlanes ScanPlane UserFieldsets UserFieldset'
+        );
+        userFieldsetNodes.forEach((fieldset) => {
+          const fieldsetName = fieldset.querySelector('Name')?.textContent?.trim() || fieldset.getAttribute('Name') || 'UserFieldset';
+          [...fieldset.querySelectorAll('UserFields > UserField')].forEach((userField) => {
+            const fieldId = normalizeId(userField.getAttribute('Id'));
+            const fieldName = userField.querySelector('Name')?.textContent?.trim() || userField.getAttribute('Name') || 'UserField';
+            if (fieldId) userFieldNameById.set(fieldId, `${fieldsetName} / ${fieldName}`);
           });
         });
+        withFallback(
+          'SdImportExport > FieldsConfiguration > StatFields > StatField',
+          'FieldsConfiguration StatFields StatField'
+        ).forEach((statField) => {
+          const fieldId = normalizeId(statField.getAttribute('Id'));
+          const fieldName = statField.querySelector('Name')?.textContent?.trim() || statField.getAttribute('Name') || 'StatField';
+          if (fieldId) userFieldNameById.set(fieldId, fieldName);
+        });
 
-        return [...caseMap.values()].map((entry) => ({
-          caseKey: entry.caseKey,
-          caseLabel: entry.caseLabel,
-          lidarLabel: entry.lidarLabel,
-          fields: [...entry.fields.values()]
-        }));
+        const mainCases = withFallback('SdImportExport > Cases > Case', 'Cases > Case');
+        const evals = withFallback('SdImportExport > Evals > Eval', 'Evals > Eval');
+
+        return mainCases.map((caseNode, idx) => {
+          const caseObjectId = normalizeId(caseNode.getAttribute('Id') || idx);
+          const caseLabel = caseNode.querySelector('Name')?.textContent?.trim() || caseNode.getAttribute('Name') || `Case ${idx + 1}`;
+          const displayOrder = normalizeId(caseNode.querySelector('DisplayOrder')?.textContent?.trim() || caseNode.getAttribute('DisplayOrder') || String(idx));
+          const numericDisplayOrder = Number(displayOrder);
+          const caseNumber = Number.isFinite(numericDisplayOrder) ? String(numericDisplayOrder + 1) : String(idx + 1);
+
+          const cutOffPaths = evals.map((evalNode) => {
+            const evalName = evalNode.querySelector('Name')?.textContent?.trim() || evalNode.getAttribute('Name') || 'Cut-off path';
+            const matchingCaseRefs = [...evalNode.querySelectorAll('Cases > Case')]
+              .filter((c) => normalizeId(c.getAttribute('Id')) === caseObjectId);
+
+            const userFieldIds = matchingCaseRefs.flatMap((c) =>
+              [...c.querySelectorAll('ScanPlanes > ScanPlane > UserFieldId')]
+                .map((n) => n.textContent?.trim())
+                .filter(Boolean)
+            );
+
+            const resolvedEntries = userFieldIds.map((ufidRaw) => {
+              const ufid = normalizeId(ufidRaw);
+              const resolvedName = userFieldNameById.get(ufid)
+                || (ufid === '100' ? 'PermRed' : null)
+                || (ufid === '101' ? 'PermGreen' : null)
+                || (ufid === '102' ? 'PermGreenWf' : null);
+              return {
+                id: ufid,
+                resolvedName
+              };
+            });
+
+            const normalizeText = (v) => String(v || '').toLowerCase().replace(/\s+/g, ' ').trim();
+            const mappedFields = resolvedEntries.flatMap((entry) => {
+              const byUserFieldId = lidarFields.filter((f) => String(f.userFieldId || '').trim() === entry.id);
+              if (byUserFieldId.length > 0) return byUserFieldId;
+              if (!entry.resolvedName) return [];
+              const split = entry.resolvedName.split('/').map((v) => v.trim());
+              if (split.length >= 2) {
+                const resolvedFieldset = split[0];
+                const resolvedField = split.slice(1).join(' / ');
+                return lidarFields.filter((f) =>
+                  normalizeText(f.fieldsetName) === normalizeText(resolvedFieldset)
+                  && normalizeText(f.fieldName) === normalizeText(resolvedField)
+                );
+              }
+              return [];
+            });
+
+            return {
+              name: evalName,
+              userFieldIds,
+              resolvedEntries,
+              fields: [...new Map(mappedFields.map((f) => [f.id, f])).values()]
+            };
+          });
+
+          return {
+            caseObjectId,
+            caseLabel,
+            caseNumber,
+            displayOrder,
+            lidarLabel,
+            cutOffPaths
+          };
+        });
       }
 
       function clearMeasurement() {
@@ -459,7 +529,13 @@
 
         const mapX = (x) => margin + (x - minX) * scale;
         const mapY = (y) => viewH - margin - (y - minY) * scale;
-        currentTransform = { minX, minY, scale, margin, viewH };
+        const renderedW = dataW * scale;
+        const renderedH = dataH * scale;
+        const centerShiftX = ((viewW - margin * 2) - renderedW) / 2;
+        const centerShiftY = ((viewH - margin * 2) - renderedH) / 2;
+        const centeredX = (x) => mapX(x) + centerShiftX;
+        const centeredY = (y) => mapY(y) - centerShiftY;
+        currentTransform = { minX, minY, scale, margin, viewH, centerShiftX, centerShiftY };
         measureBtn.disabled = false;
         clearMeasureBtn.disabled = false;
         clearMeasurement();
@@ -477,7 +553,7 @@
 
         selectedFields.forEach((field, idx) => {
           const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-          poly.setAttribute('points', field.points.map((p) => `${mapX(p.x)},${mapY(p.y)}`).join(' '));
+          poly.setAttribute('points', field.points.map((p) => `${centeredX(p.x)},${centeredY(p.y)}`).join(' '));
           const color = palette[idx % palette.length];
           poly.setAttribute('fill', color.fill);
           poly.setAttribute('stroke', color.stroke);
@@ -487,16 +563,16 @@
           for (let pointIdx = 0; pointIdx < field.points.length; pointIdx += 1) {
             const p = field.points[pointIdx];
             const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            c.setAttribute('cx', mapX(p.x));
-            c.setAttribute('cy', mapY(p.y));
+            c.setAttribute('cx', centeredX(p.x));
+            c.setAttribute('cy', centeredY(p.y));
             c.setAttribute('r', '3');
             c.setAttribute('fill', color.point);
             svg.append(c);
 
             const originalPoint = field.originalPoints?.[pointIdx] || p;
             const coordText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            coordText.setAttribute('x', String(mapX(p.x) + 6));
-            coordText.setAttribute('y', String(mapY(p.y) - 6));
+            coordText.setAttribute('x', String(centeredX(p.x) + 6));
+            coordText.setAttribute('y', String(centeredY(p.y) - 6));
             coordText.setAttribute('fill', color.point);
             coordText.setAttribute('font-size', '11');
             coordText.textContent = `(${originalPoint.x}, ${originalPoint.y})`;
@@ -507,8 +583,8 @@
         const lidarMarkers = [lidar1Location, lidar2Location];
         lidarMarkers.forEach((lidar) => {
           const marker = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-          marker.setAttribute('cx', mapX(lidar.x));
-          marker.setAttribute('cy', mapY(lidar.y));
+          marker.setAttribute('cx', centeredX(lidar.x));
+          marker.setAttribute('cy', centeredY(lidar.y));
           marker.setAttribute('r', '25');
           marker.setAttribute('fill', 'rgba(250, 204, 21, 0.35)');
           marker.setAttribute('stroke', '#facc15');
@@ -516,21 +592,45 @@
           svg.append(marker);
 
           const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          label.setAttribute('x', String(mapX(lidar.x) + 30));
-          label.setAttribute('y', String(mapY(lidar.y)));
+          label.setAttribute('x', String(centeredX(lidar.x) + 30));
+          label.setAttribute('y', String(centeredY(lidar.y)));
           label.setAttribute('fill', '#fde68a');
           label.setAttribute('font-size', '13');
           label.textContent = lidar.label;
           svg.append(label);
         });
 
-        const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        title.setAttribute('x', String(margin));
-        title.setAttribute('y', String(margin - 12));
-        title.setAttribute('fill', '#e2e8f0');
-        title.setAttribute('font-size', '16');
-        title.textContent = selectedFields.map((f) => `${f.label}: ${f.fieldsetName} / ${f.fieldName}`).join(' | ');
-        svg.append(title);
+        const legendX = viewW - 280;
+        const legendY = margin;
+        const legendBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        legendBg.setAttribute('x', String(legendX - 10));
+        legendBg.setAttribute('y', String(legendY - 18));
+        legendBg.setAttribute('width', '265');
+        legendBg.setAttribute('height', String(Math.max(38, selectedFields.length * 18 + 18)));
+        legendBg.setAttribute('fill', 'rgba(15,23,42,0.85)');
+        legendBg.setAttribute('stroke', 'rgba(148,163,184,0.5)');
+        legendBg.setAttribute('rx', '8');
+        svg.append(legendBg);
+
+        selectedFields.forEach((field, idx) => {
+          const color = palette[idx % palette.length];
+          const y = legendY + idx * 18;
+          const swatch = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          swatch.setAttribute('x', String(legendX));
+          swatch.setAttribute('y', String(y - 10));
+          swatch.setAttribute('width', '12');
+          swatch.setAttribute('height', '12');
+          swatch.setAttribute('fill', color.stroke);
+          svg.append(swatch);
+
+          const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          txt.setAttribute('x', String(legendX + 18));
+          txt.setAttribute('y', String(y));
+          txt.setAttribute('fill', '#e2e8f0');
+          txt.setAttribute('font-size', '11');
+          txt.textContent = `${field.label}: ${field.fieldName}`;
+          svg.append(txt);
+        });
 
         setStatus(`Rendered ${selectedFields.length} field(s): ${selectedFields.map((f) => f.label).join(', ')}.`);
       }
@@ -541,8 +641,8 @@
         if (!rect.width || !rect.height) return null;
         const svgX = ((event.clientX - rect.left) / rect.width) * 900;
         const svgY = ((event.clientY - rect.top) / rect.height) * 600;
-        const worldX = currentTransform.minX + (svgX - currentTransform.margin) / currentTransform.scale;
-        const worldY = currentTransform.minY + ((currentTransform.viewH - currentTransform.margin) - svgY) / currentTransform.scale;
+        const worldX = currentTransform.minX + (svgX - currentTransform.margin - currentTransform.centerShiftX) / currentTransform.scale;
+        const worldY = currentTransform.minY + ((currentTransform.viewH - currentTransform.margin - currentTransform.centerShiftY) - svgY) / currentTransform.scale;
         return { x: worldX, y: worldY, svgX, svgY };
       }
 
@@ -800,23 +900,70 @@
       });
 
       renderCaseBtn.addEventListener('click', () => {
-        const selectedCaseKey = monitoringCaseSelect.value;
-        if (!selectedCaseKey) {
+        const selectedKey = monitoringCaseSelect.value;
+        if (!selectedKey) {
           setStatus('Select a monitoring case first.', true);
           return;
         }
-        const caseEntries = [...monitoringCases1, ...monitoringCases2].filter((c) => c.caseKey === selectedCaseKey);
-        const selectedFields = caseEntries.flatMap((entry) =>
-          entry.fields.map((field, index) => ({
-            ...field,
-            label: `${entry.lidarLabel} - ${entry.caseLabel} - F${index + 1}`
-          }))
+        const allCases = [...monitoringCases1, ...monitoringCases2];
+        const caseEntries = allCases.filter((c) =>
+          selectedKey.startsWith('CN:')
+            ? `CN:${c.caseNumber}` === selectedKey
+            : `NM:${c.caseLabel}` === selectedKey
         );
-        if (selectedFields.length === 0) {
-          setStatus(`No matching fields found for ${selectedCaseKey}. Check field XML imports and monitoring case references.`, true);
+        if (caseEntries.length === 0) {
+          setStatus('Selected monitoring case was not found.', true);
           return;
         }
-        renderField(selectedFields);
+
+        const pathToCell = (path) => {
+          if (!path || path.userFieldIds.length === 0) return 'not found';
+          return path.resolvedEntries
+            .map((entry) => `${entry.id} = ${entry.resolvedName || 'not found'}`)
+            .join('; ');
+        };
+        const selectedPathNums = cutoffPathChecks
+          .filter((cb) => cb.checked)
+          .map((cb) => Number(cb.value))
+          .filter((n) => Number.isFinite(n));
+        if (selectedPathNums.length === 0) {
+          setStatus('Select at least one cut-off path checkbox.', true);
+          return;
+        }
+        const detailLines = [];
+        const selectedFields = caseEntries.flatMap((caseEntry) => {
+          const getPath = (n) => caseEntry.cutOffPaths.find((p) => new RegExp(`cut-?off path\\s*${n}`, 'i').test(p.name)) || caseEntry.cutOffPaths[n - 1];
+          const paths = [1, 2, 3, 4, 5, 6, 7, 8].map(getPath);
+          detailLines.push(`Lidar: ${caseEntry.lidarLabel}`);
+          detailLines.push(`CaseNumber: ${caseEntry.caseNumber}`);
+          detailLines.push(`Name: ${caseEntry.caseLabel}`);
+          detailLines.push(`CaseId: ${caseEntry.caseObjectId}`);
+          detailLines.push(`DisplayOrder: ${caseEntry.displayOrder}`);
+          paths.forEach((p, i) => detailLines.push(`Cut-off path ${i + 1}: ${pathToCell(p)}`));
+          detailLines.push('---');
+
+          const filteredPaths = caseEntry.cutOffPaths.filter((path, idx) => {
+            const byName = selectedPathNums.some((n) => new RegExp(`cut-?off path\\s*${n}`, 'i').test(path.name));
+            const byIndex = selectedPathNums.includes(idx + 1);
+            return byName || byIndex;
+          });
+
+          return filteredPaths.flatMap((path, pathIndex) =>
+            path.fields.map((field, fieldIndex) => ({
+              ...field,
+              label: `${caseEntry.lidarLabel} - ${path.name} - F${pathIndex + 1}.${fieldIndex + 1}`,
+              dedupeKey: `${caseEntry.lidarLabel}::${path.name}::${field.id}`
+            }))
+          );
+        });
+        const uniqueSelectedFields = [...new Map(selectedFields.map((f) => [f.dedupeKey, f])).values()];
+        caseDetails.textContent = detailLines.join('\n');
+
+        if (uniqueSelectedFields.length === 0) {
+          setStatus('No matching fields found under selected monitoring case for imported lidar fields.', true);
+          return;
+        }
+        renderField(uniqueSelectedFields);
       });
     </script>
   </body>
