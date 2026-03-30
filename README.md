@@ -14,6 +14,7 @@ Simple web app for visualising SICK safety fields from pasted XML content.
 - Include a measurement tool: click **Measure distance**, then click any two canvas points to get total distance plus absolute `Δx` and `Δy` in mm.
 - XML imports are parsed client-side only (no file storage/upload backend).
 - Add/paste monitoring cases XML for both lidars, get a merged monitoring-case list, choose a case (e.g. case 33), and render all matched fields from both lidar datasets with different colors.
+- Monitoring-case parsing prioritizes **case ID / number** nodes and searches under each case for field names that match the imported field list.
 
 ## Run locally
 
