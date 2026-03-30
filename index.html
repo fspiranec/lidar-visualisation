@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lidar Safety Field Visualiser</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #0f172a;
+        --panel: #111827;
+        --panel-light: #1f2937;
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --accent: #22d3ee;
+      }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        background: linear-gradient(180deg, #0b1022 0%, #10172f 100%);
+        color: var(--text);
+      }
+      .wrap {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      h1 { margin-top: 0; }
+      .card {
+        background: rgba(17, 24, 39, 0.9);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 16px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      label {
+        display: block;
+        font-size: 14px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      input[type="file"], select {
+        width: 100%;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: var(--panel-light);
+        color: var(--text);
+        padding: 10px;
+        border-radius: 10px;
+      }
+      button {
+        padding: 10px 14px;
+        border: 0;
+        border-radius: 10px;
+        background: var(--accent);
+        color: #002732;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .hint { color: var(--muted); font-size: 14px; }
+      .viz {
+        width: 100%;
+        min-height: 560px;
+        background: #020617;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .msg {
+        margin-top: 8px;
+        font-size: 14px;
+        min-height: 20px;
+      }
+      @media (max-width: 760px) {
+        .row { grid-template-columns: 1fr; }
+        .viz { min-height: 420px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Lidar Safety Field Visualiser</h1>
+      <p class="hint">
+        Paste your field XML (SICK fieldset export), choose one field, and the app will draw the polygon.
+        Monitoring-case mapping can be added next.
+      </p>
+
+      <div class="card">
+        <div class="row">
+          <div>
+            <label for="openPasteDialogBtn1">Rear Left Lidar XML input</label>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button id="openPasteDialogBtn1" type="button">Paste XML (Rear Left Lidar)</button>
+              <button id="importXmlBtn1" type="button">Import XML</button>
+            </div>
+            <input id="importXmlInput1" type="file" accept=".xml,.txt" style="display:none;" />
+          </div>
+          <div>
+            <label for="fieldSelect1">Rear Left Lidar field from list</label>
+            <select id="fieldSelect1" disabled>
+              <option value="">Paste Rear Left Lidar XML first…</option>
+            </select>
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px;">
+          <div>
+            <label for="openPasteDialogBtn2">Front Right Lidar XML input</label>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button id="openPasteDialogBtn2" type="button">Paste XML (Front Right Lidar)</button>
+              <button id="importXmlBtn2" type="button">Import XML</button>
+            </div>
+            <input id="importXmlInput2" type="file" accept=".xml,.txt" style="display:none;" />
+          </div>
+          <div>
+            <label for="fieldSelect2">Front Right Lidar field from list (rotate 180° + offset by -1180, -1650)</label>
+            <select id="fieldSelect2" disabled>
+              <option value="">Paste Front Right Lidar XML first…</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <button id="renderBtn" disabled>Render selected field(s)</button>
+          <button id="measureBtn" type="button" disabled>Measure distance</button>
+          <button id="clearMeasureBtn" type="button" disabled>Clear measure</button>
+          <span class="hint">Coordinates are shown in mm (auto-scaled to screen).</span>
+        </div>
+        <div class="msg" id="status"></div>
+      </div>
+
+      <div class="card">
+        <svg id="canvas" class="viz" viewBox="0 0 900 600" role="img" aria-label="Field visualisation"></svg>
+      </div>
+    </div>
+
+    <dialog id="xmlDialog1" style="max-width:900px; width:min(900px,95vw); border-radius:12px; border:1px solid rgba(148,163,184,0.35); background:#0b1225; color:#e5e7eb;">
+      <form method="dialog" style="display:flex; flex-direction:column; gap:10px; padding:12px;">
+        <label for="xmlInput1">Paste Rear Left Lidar XML content</label>
+        <textarea id="xmlInput1" rows="14" style="width:100%; resize:vertical; border-radius:10px; border:1px solid rgba(148, 163, 184, 0.35); background:#1f2937; color:#e5e7eb; padding:10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;"></textarea>
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+          <button value="cancel" style="background:#374151; color:#e5e7eb;" type="submit">Close</button>
+          <button id="parsePastedXmlBtn1" value="default" type="button">Parse XML</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="xmlDialog2" style="max-width:900px; width:min(900px,95vw); border-radius:12px; border:1px solid rgba(148,163,184,0.35); background:#0b1225; color:#e5e7eb;">
+      <form method="dialog" style="display:flex; flex-direction:column; gap:10px; padding:12px;">
+        <label for="xmlInput2">Paste Front Right Lidar XML content</label>
+        <textarea id="xmlInput2" rows="14" style="width:100%; resize:vertical; border-radius:10px; border:1px solid rgba(148, 163, 184, 0.35); background:#1f2937; color:#e5e7eb; padding:10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;"></textarea>
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+          <button value="cancel" style="background:#374151; color:#e5e7eb;" type="submit">Close</button>
+          <button id="parsePastedXmlBtn2" value="default" type="button">Parse XML</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script>
+      const openPasteDialogBtn1 = document.getElementById('openPasteDialogBtn1');
+      const importXmlBtn1 = document.getElementById('importXmlBtn1');
+      const importXmlInput1 = document.getElementById('importXmlInput1');
+      const xmlDialog1 = document.getElementById('xmlDialog1');
+      const xmlInput1 = document.getElementById('xmlInput1');
+      const parsePastedXmlBtn1 = document.getElementById('parsePastedXmlBtn1');
+      const fieldSelect1 = document.getElementById('fieldSelect1');
+      const openPasteDialogBtn2 = document.getElementById('openPasteDialogBtn2');
+      const importXmlBtn2 = document.getElementById('importXmlBtn2');
+      const importXmlInput2 = document.getElementById('importXmlInput2');
+      const xmlDialog2 = document.getElementById('xmlDialog2');
+      const xmlInput2 = document.getElementById('xmlInput2');
+      const parsePastedXmlBtn2 = document.getElementById('parsePastedXmlBtn2');
+      const fieldSelect2 = document.getElementById('fieldSelect2');
+      const renderBtn = document.getElementById('renderBtn');
+      const measureBtn = document.getElementById('measureBtn');
+      const clearMeasureBtn = document.getElementById('clearMeasureBtn');
+      const statusEl = document.getElementById('status');
+      const svg = document.getElementById('canvas');
+
+      const lidar1Location = { x: 0, y: 0, label: 'rear left lidar' };
+      const lidar2Offset = { x: -1180, y: -1650 };
+      const lidar2Location = { x: lidar2Offset.x, y: lidar2Offset.y, label: 'front right lidar' };
+      let fieldData1 = [];
+      let fieldData2 = [];
+      let currentTransform = null;
+      let measureMode = false;
+      let measurePoints = [];
+
+      function setStatus(text, isError = false) {
+        statusEl.textContent = text;
+        statusEl.style.color = isError ? '#fda4af' : '#86efac';
+      }
+
+      function parseFields(xmlText) {
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(xmlText, 'application/xml');
+
+        if (xml.querySelector('parsererror')) {
+          throw new Error('Invalid XML format.');
+        }
+
+        const fieldsets = [...xml.querySelectorAll('Fieldset')];
+        const extracted = [];
+
+        for (const fs of fieldsets) {
+          const fieldsetName = fs.getAttribute('Name') || 'Unnamed Fieldset';
+          const fields = [...fs.querySelectorAll(':scope > Field')];
+
+          for (const field of fields) {
+            const fieldName = field.getAttribute('Name') || 'Unnamed Field';
+            const polygon = field.querySelector('Polygon[Type="Field"]');
+            if (!polygon) continue;
+
+            const points = [...polygon.querySelectorAll('Point')]
+              .map((pt) => ({
+                x: Number(pt.getAttribute('X')),
+                y: Number(pt.getAttribute('Y'))
+              }))
+              .filter((pt) => Number.isFinite(pt.x) && Number.isFinite(pt.y));
+
+            if (points.length >= 3) {
+              extracted.push({
+                id: `${fieldsetName} :: ${fieldName}`,
+                fieldsetName,
+                fieldName,
+                points
+              });
+            }
+          }
+        }
+
+        return extracted;
+      }
+
+      function refreshRenderButtonState() {
+        renderBtn.disabled = fieldData1.length === 0 && fieldData2.length === 0;
+      }
+
+      function clearMeasurement() {
+        measurePoints = [];
+        const measurementLayer = document.getElementById('measurementLayer');
+        if (measurementLayer) measurementLayer.innerHTML = '';
+      }
+
+      function setMeasureMode(enabled) {
+        measureMode = enabled;
+        clearMeasureBtn.disabled = !enabled && measurePoints.length === 0;
+        measureBtn.textContent = enabled ? 'Measuring… (click 2 points)' : 'Measure distance';
+      }
+
+      function populateSelect(selectEl, fields, emptyLabel) {
+        selectEl.innerHTML = '';
+
+        if (fields.length === 0) {
+          selectEl.disabled = true;
+          selectEl.append(new Option(emptyLabel, ''));
+          refreshRenderButtonState();
+          return;
+        }
+
+        fields.forEach((f, idx) => {
+          selectEl.append(new Option(`${f.fieldsetName} → ${f.fieldName}`, String(idx)));
+        });
+
+        selectEl.disabled = false;
+        refreshRenderButtonState();
+      }
+
+      function renderAxes(viewW, viewH, margin) {
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('opacity', '0.45');
+
+        const axisColor = '#64748b';
+        const h = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        h.setAttribute('x1', margin);
+        h.setAttribute('y1', viewH / 2);
+        h.setAttribute('x2', viewW - margin);
+        h.setAttribute('y2', viewH / 2);
+        h.setAttribute('stroke', axisColor);
+
+        const v = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        v.setAttribute('x1', viewW / 2);
+        v.setAttribute('y1', margin);
+        v.setAttribute('x2', viewW / 2);
+        v.setAttribute('y2', viewH - margin);
+        v.setAttribute('stroke', axisColor);
+
+        g.append(h, v);
+        return g;
+      }
+
+      function renderField(selectedFields) {
+        const viewW = 900;
+        const viewH = 600;
+        const margin = 40;
+        svg.innerHTML = '';
+        svg.setAttribute('viewBox', `0 0 ${viewW} ${viewH}`);
+
+        const allPoints = selectedFields.flatMap((f) => f.points).concat([
+          { x: lidar1Location.x, y: lidar1Location.y },
+          { x: lidar2Location.x, y: lidar2Location.y }
+        ]);
+        const xs = allPoints.map((p) => p.x);
+        const ys = allPoints.map((p) => p.y);
+        const minX = Math.min(...xs);
+        const maxX = Math.max(...xs);
+        const minY = Math.min(...ys);
+        const maxY = Math.max(...ys);
+
+        const dataW = Math.max(maxX - minX, 1);
+        const dataH = Math.max(maxY - minY, 1);
+        const scale = Math.min((viewW - margin * 2) / dataW, (viewH - margin * 2) / dataH);
+
+        const mapX = (x) => margin + (x - minX) * scale;
+        const mapY = (y) => viewH - margin - (y - minY) * scale;
+        currentTransform = { minX, minY, scale, margin, viewH };
+        measureBtn.disabled = false;
+        clearMeasureBtn.disabled = false;
+        clearMeasurement();
+        setMeasureMode(false);
+
+        svg.append(renderAxes(viewW, viewH, margin));
+
+        const palette = [
+          { fill: 'rgba(34, 211, 238, 0.25)', stroke: '#22d3ee', point: '#f8fafc' },
+          { fill: 'rgba(250, 204, 21, 0.25)', stroke: '#facc15', point: '#fef9c3' }
+        ];
+
+        selectedFields.forEach((field, idx) => {
+          const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+          poly.setAttribute('points', field.points.map((p) => `${mapX(p.x)},${mapY(p.y)}`).join(' '));
+          poly.setAttribute('fill', palette[idx].fill);
+          poly.setAttribute('stroke', palette[idx].stroke);
+          poly.setAttribute('stroke-width', '2');
+          svg.append(poly);
+
+          for (let pointIdx = 0; pointIdx < field.points.length; pointIdx += 1) {
+            const p = field.points[pointIdx];
+            const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            c.setAttribute('cx', mapX(p.x));
+            c.setAttribute('cy', mapY(p.y));
+            c.setAttribute('r', '3');
+            c.setAttribute('fill', palette[idx].point);
+            svg.append(c);
+
+            const originalPoint = field.originalPoints?.[pointIdx] || p;
+            const coordText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            coordText.setAttribute('x', String(mapX(p.x) + 6));
+            coordText.setAttribute('y', String(mapY(p.y) - 6));
+            coordText.setAttribute('fill', palette[idx].point);
+            coordText.setAttribute('font-size', '11');
+            coordText.textContent = `(${originalPoint.x}, ${originalPoint.y})`;
+            svg.append(coordText);
+          }
+        });
+
+        const lidarMarkers = [lidar1Location, lidar2Location];
+        lidarMarkers.forEach((lidar) => {
+          const marker = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          marker.setAttribute('cx', mapX(lidar.x));
+          marker.setAttribute('cy', mapY(lidar.y));
+          marker.setAttribute('r', '25');
+          marker.setAttribute('fill', 'rgba(250, 204, 21, 0.35)');
+          marker.setAttribute('stroke', '#facc15');
+          marker.setAttribute('stroke-width', '2');
+          svg.append(marker);
+
+          const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          label.setAttribute('x', String(mapX(lidar.x) + 30));
+          label.setAttribute('y', String(mapY(lidar.y)));
+          label.setAttribute('fill', '#fde68a');
+          label.setAttribute('font-size', '13');
+          label.textContent = lidar.label;
+          svg.append(label);
+        });
+
+        const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        title.setAttribute('x', String(margin));
+        title.setAttribute('y', String(margin - 12));
+        title.setAttribute('fill', '#e2e8f0');
+        title.setAttribute('font-size', '16');
+        title.textContent = selectedFields.map((f) => `${f.label}: ${f.fieldsetName} / ${f.fieldName}`).join(' | ');
+        svg.append(title);
+
+        setStatus(`Rendered ${selectedFields.length} field(s): ${selectedFields.map((f) => f.label).join(', ')}.`);
+      }
+
+      function svgClientToWorld(event) {
+        if (!currentTransform) return null;
+        const rect = svg.getBoundingClientRect();
+        if (!rect.width || !rect.height) return null;
+        const svgX = ((event.clientX - rect.left) / rect.width) * 900;
+        const svgY = ((event.clientY - rect.top) / rect.height) * 600;
+        const worldX = currentTransform.minX + (svgX - currentTransform.margin) / currentTransform.scale;
+        const worldY = currentTransform.minY + ((currentTransform.viewH - currentTransform.margin) - svgY) / currentTransform.scale;
+        return { x: worldX, y: worldY, svgX, svgY };
+      }
+
+      function renderMeasurement() {
+        let measurementLayer = document.getElementById('measurementLayer');
+        if (!measurementLayer) {
+          measurementLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+          measurementLayer.setAttribute('id', 'measurementLayer');
+          svg.append(measurementLayer);
+        }
+        measurementLayer.innerHTML = '';
+        if (measurePoints.length < 2) return;
+
+        const [a, b] = measurePoints;
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', String(a.svgX));
+        line.setAttribute('y1', String(a.svgY));
+        line.setAttribute('x2', String(b.svgX));
+        line.setAttribute('y2', String(b.svgY));
+        line.setAttribute('stroke', '#f43f5e');
+        line.setAttribute('stroke-width', '2.5');
+        measurementLayer.append(line);
+
+        const distance = Math.hypot(b.x - a.x, b.y - a.y);
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', String((a.svgX + b.svgX) / 2 + 8));
+        label.setAttribute('y', String((a.svgY + b.svgY) / 2 - 8));
+        label.setAttribute('fill', '#fb7185');
+        label.setAttribute('font-size', '13');
+        const dx = Math.abs(b.x - a.x);
+        const dy = Math.abs(b.y - a.y);
+        label.textContent = `${distance.toFixed(1)} mm | Δx ${dx.toFixed(1)} | Δy ${dy.toFixed(1)}`;
+        measurementLayer.append(label);
+
+        setStatus(`Distance: ${distance.toFixed(1)} mm (|Δx|=${dx.toFixed(1)} mm, |Δy|=${dy.toFixed(1)} mm) between (${a.x.toFixed(1)}, ${a.y.toFixed(1)}) and (${b.x.toFixed(1)}, ${b.y.toFixed(1)}).`);
+      }
+
+      function parseAndLoadXml(text, lidarId) {
+        try {
+          const parsedFields = parseFields(text);
+
+          if (lidarId === 2) {
+            fieldData2 = parsedFields.map((f) => ({
+              ...f,
+              originalPoints: f.points.map((p) => ({ x: p.x, y: p.y })),
+              points: f.points.map((p) => ({
+                x: (-p.x) + lidar2Offset.x,
+                y: (-p.y) + lidar2Offset.y
+              }))
+            }));
+            populateSelect(fieldSelect2, fieldData2, 'No valid fields found');
+          } else {
+            fieldData1 = parsedFields.map((f) => ({
+              ...f,
+              originalPoints: f.points.map((p) => ({ x: p.x, y: p.y }))
+            }));
+            populateSelect(fieldSelect1, fieldData1, 'No valid fields found');
+          }
+
+          if (parsedFields.length > 0) {
+            const lidarName = lidarId === 1 ? 'Rear Left Lidar' : 'Front Right Lidar';
+            setStatus(`Loaded ${parsedFields.length} field(s) from ${lidarName}.`);
+          } else {
+            const lidarName = lidarId === 1 ? 'Rear Left Lidar' : 'Front Right Lidar';
+            setStatus(`No valid Field polygons found in ${lidarName} XML.`, true);
+          }
+        } catch (err) {
+          if (lidarId === 2) {
+            fieldData2 = [];
+            populateSelect(fieldSelect2, fieldData2, 'No valid fields found');
+          } else {
+            fieldData1 = [];
+            populateSelect(fieldSelect1, fieldData1, 'No valid fields found');
+          }
+          const lidarName = lidarId === 1 ? 'Rear Left Lidar' : 'Front Right Lidar';
+          setStatus(err instanceof Error ? `${lidarName}: ${err.message}` : `Could not parse ${lidarName} XML.`, true);
+        }
+      }
+
+      openPasteDialogBtn1.addEventListener('click', () => {
+        xmlDialog1.showModal();
+      });
+
+      importXmlBtn1.addEventListener('click', () => {
+        importXmlInput1.click();
+      });
+
+      openPasteDialogBtn2.addEventListener('click', () => {
+        xmlDialog2.showModal();
+      });
+
+      importXmlBtn2.addEventListener('click', () => {
+        importXmlInput2.click();
+      });
+
+      importXmlInput1.addEventListener('change', async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        try {
+          const xmlText = await file.text();
+          parseAndLoadXml(xmlText, 1);
+        } catch (err) {
+          setStatus(err instanceof Error ? err.message : 'Could not read Rear Left Lidar XML file.', true);
+        } finally {
+          importXmlInput1.value = '';
+        }
+      });
+
+      importXmlInput2.addEventListener('change', async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        try {
+          const xmlText = await file.text();
+          parseAndLoadXml(xmlText, 2);
+        } catch (err) {
+          setStatus(err instanceof Error ? err.message : 'Could not read Front Right Lidar XML file.', true);
+        } finally {
+          importXmlInput2.value = '';
+        }
+      });
+
+      parsePastedXmlBtn1.addEventListener('click', () => {
+        const pastedXml = xmlInput1.value.trim();
+        if (!pastedXml) {
+          setStatus('Please paste Rear Left Lidar XML before parsing.', true);
+          return;
+        }
+        parseAndLoadXml(pastedXml, 1);
+        xmlDialog1.close();
+      });
+
+      parsePastedXmlBtn2.addEventListener('click', () => {
+        const pastedXml = xmlInput2.value.trim();
+        if (!pastedXml) {
+          setStatus('Please paste Front Right Lidar XML before parsing.', true);
+          return;
+        }
+        parseAndLoadXml(pastedXml, 2);
+        xmlDialog2.close();
+      });
+
+      measureBtn.addEventListener('click', () => {
+        if (!currentTransform) {
+          setStatus('Render a field first, then start measuring.', true);
+          return;
+        }
+        clearMeasurement();
+        measurePoints = [];
+        setMeasureMode(true);
+        setStatus('Measurement mode enabled. Click 2 points in the canvas.');
+      });
+
+      clearMeasureBtn.addEventListener('click', () => {
+        clearMeasurement();
+        setMeasureMode(false);
+        setStatus('Measurement cleared.');
+      });
+
+      svg.addEventListener('click', (event) => {
+        if (!measureMode) return;
+        const point = svgClientToWorld(event);
+        if (!point) return;
+        measurePoints.push(point);
+        if (measurePoints.length === 2) {
+          renderMeasurement();
+          setMeasureMode(false);
+        }
+      });
+
+      renderBtn.addEventListener('click', () => {
+        const idx1 = Number(fieldSelect1.value);
+        const idx2 = Number(fieldSelect2.value);
+
+        const selectedFields = [];
+        if (Number.isInteger(idx1) && fieldData1[idx1]) {
+          selectedFields.push({ ...fieldData1[idx1], label: 'Rear Left Lidar' });
+        }
+        if (Number.isInteger(idx2) && fieldData2[idx2]) {
+          selectedFields.push({ ...fieldData2[idx2], label: 'Front Right Lidar' });
+        }
+
+        if (selectedFields.length === 0) {
+          setStatus('Please select at least one valid field (Rear Left Lidar and/or Front Right Lidar).', true);
+          return;
+        }
+
+        renderField(selectedFields);
+      });
+    </script>
+  </body>
+</html>
