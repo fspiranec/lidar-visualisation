@@ -159,6 +159,20 @@
             <option value="">Load monitoring cases first…</option>
           </select>
         </div>
+        <div style="margin-top:12px;">
+          <label for="cutoffPathFilter">Cut-off path render filter</label>
+          <select id="cutoffPathFilter">
+            <option value="all">All cut-off paths (1-8)</option>
+            <option value="1">Cut-off path 1</option>
+            <option value="2">Cut-off path 2</option>
+            <option value="3">Cut-off path 3</option>
+            <option value="4">Cut-off path 4</option>
+            <option value="5">Cut-off path 5</option>
+            <option value="6">Cut-off path 6</option>
+            <option value="7">Cut-off path 7</option>
+            <option value="8">Cut-off path 8</option>
+          </select>
+        </div>
         <pre id="caseDetails" style="margin-top:12px; white-space:pre-wrap; background:#0b1225; border:1px solid rgba(148,163,184,0.35); border-radius:10px; padding:10px; color:#cbd5e1;">Monitoring case details will appear here.</pre>
       </div>
 
@@ -226,6 +240,7 @@
       const renderBtn = document.getElementById('renderBtn');
       const renderCaseBtn = document.getElementById('renderCaseBtn');
       const monitoringCaseSelect = document.getElementById('monitoringCaseSelect');
+      const cutoffPathFilter = document.getElementById('cutoffPathFilter');
       const caseDetails = document.getElementById('caseDetails');
       const measureBtn = document.getElementById('measureBtn');
       const clearMeasureBtn = document.getElementById('clearMeasureBtn');
@@ -342,26 +357,40 @@
 
         const lidarFields = lidarLabel === 'Rear Left Lidar' ? fieldData1 : fieldData2;
         const userFieldNameById = new Map();
-        [...xml.querySelectorAll('SdImportExport > FieldsConfiguration > ScanPlanes > ScanPlane > UserFieldsets > UserFieldset')].forEach((fieldset) => {
+        const normalizeId = (v) => String(v ?? '').trim().replace(/^0+(\d)/, '$1');
+        const userFieldsetNodes = [
+          ...xml.querySelectorAll('SdImportExport > FieldsConfiguration > ScanPlanes > ScanPlane > UserFieldsets > UserFieldset'),
+          ...xml.querySelectorAll('FieldsConfiguration ScanPlanes ScanPlane UserFieldsets UserFieldset')
+        ];
+        userFieldsetNodes.forEach((fieldset) => {
           const fieldsetName = fieldset.querySelector('Name')?.textContent?.trim() || fieldset.getAttribute('Name') || 'UserFieldset';
           [...fieldset.querySelectorAll('UserFields > UserField')].forEach((userField) => {
-            const fieldId = userField.getAttribute('Id');
+            const fieldId = normalizeId(userField.getAttribute('Id'));
             const fieldName = userField.querySelector('Name')?.textContent?.trim() || userField.getAttribute('Name') || 'UserField';
             if (fieldId) userFieldNameById.set(fieldId, `${fieldsetName} / ${fieldName}`);
           });
         });
-        [...xml.querySelectorAll('SdImportExport > FieldsConfiguration > StatFields > StatField')].forEach((statField) => {
-          const fieldId = statField.getAttribute('Id');
+        [
+          ...xml.querySelectorAll('SdImportExport > FieldsConfiguration > StatFields > StatField'),
+          ...xml.querySelectorAll('FieldsConfiguration StatFields StatField')
+        ].forEach((statField) => {
+          const fieldId = normalizeId(statField.getAttribute('Id'));
           const fieldName = statField.querySelector('Name')?.textContent?.trim() || statField.getAttribute('Name') || 'StatField';
           if (fieldId) userFieldNameById.set(fieldId, fieldName);
         });
 
-        const mainCases = [...xml.querySelectorAll('SdImportExport > Cases > Case, Cases > Case')];
-        const evals = [...xml.querySelectorAll('SdImportExport > Evals > Eval, Evals > Eval')];
+        const mainCases = [
+          ...xml.querySelectorAll('SdImportExport > Cases > Case'),
+          ...xml.querySelectorAll('Cases > Case')
+        ];
+        const evals = [
+          ...xml.querySelectorAll('SdImportExport > Evals > Eval'),
+          ...xml.querySelectorAll('Evals > Eval')
+        ];
 
         return mainCases.map((caseNode, idx) => {
           const caseLabel = caseNode.querySelector('Name')?.textContent?.trim() || caseNode.getAttribute('Name') || `Case ${idx + 1}`;
-          const displayOrder = caseNode.querySelector('DisplayOrder')?.textContent?.trim() || caseNode.getAttribute('DisplayOrder') || String(idx);
+          const displayOrder = normalizeId(caseNode.querySelector('DisplayOrder')?.textContent?.trim() || caseNode.getAttribute('DisplayOrder') || String(idx));
           const caseNumber = caseNode.querySelector('Activation > CaseNumber')?.textContent?.trim()
             || caseNode.querySelector('CaseNumber')?.textContent?.trim()
             || caseNode.getAttribute('CaseNumber')
@@ -370,7 +399,7 @@
           const cutOffPaths = evals.map((evalNode) => {
             const evalName = evalNode.querySelector('Name')?.textContent?.trim() || evalNode.getAttribute('Name') || 'Cut-off path';
             const matchingCaseRefs = [...evalNode.querySelectorAll('Cases > Case')]
-              .filter((c) => (c.getAttribute('Id') || '').trim() === displayOrder);
+              .filter((c) => normalizeId(c.getAttribute('Id')) === displayOrder);
 
             const userFieldIds = matchingCaseRefs.flatMap((c) =>
               [...c.querySelectorAll('ScanPlanes > ScanPlane > UserFieldId')]
@@ -378,7 +407,8 @@
                 .filter(Boolean)
             );
 
-            const resolvedEntries = userFieldIds.map((ufid) => {
+            const resolvedEntries = userFieldIds.map((ufidRaw) => {
+              const ufid = normalizeId(ufidRaw);
               const resolvedName = userFieldNameById.get(ufid) || null;
               return {
                 id: ufid,
@@ -395,10 +425,10 @@
                 const resolvedFieldset = split[0];
                 const resolvedField = split.slice(1).join(' / ');
                 return lidarFields.filter((f) =>
-                  f.fieldsetName === resolvedFieldset && f.fieldName === resolvedField
+                  f.fieldsetName.trim() === resolvedFieldset && f.fieldName.trim() === resolvedField
                 );
               }
-              return lidarFields.filter((f) => f.fieldName === entry.resolvedName);
+              return lidarFields.filter((f) => f.fieldName.trim() === entry.resolvedName);
             });
 
             return {
@@ -859,20 +889,25 @@
             .map((entry) => `${entry.id} = ${entry.resolvedName || 'not found'}`)
             .join('; ');
         };
+        const selectedPathNum = cutoffPathFilter.value === 'all' ? null : Number(cutoffPathFilter.value);
         const detailLines = [
-          '| Lidar | CaseNumber | Name | DisplayOrder | Cut-off path 1 | Cut-off path 2 | Cut-off path 3 | Cut-off path 4 |',
-          '|---|---|---|---|---|---|---|---|'
+          '| Lidar | CaseNumber | Name | DisplayOrder | Cut-off path 1 | Cut-off path 2 | Cut-off path 3 | Cut-off path 4 | Cut-off path 5 | Cut-off path 6 | Cut-off path 7 | Cut-off path 8 |',
+          '|---|---|---|---|---|---|---|---|---|---|---|---|'
         ];
         const selectedFields = caseEntries.flatMap((caseEntry) => {
-          const path1 = caseEntry.cutOffPaths.find((p) => /cut-?off path 1/i.test(p.name)) || caseEntry.cutOffPaths[0];
-          const path2 = caseEntry.cutOffPaths.find((p) => /cut-?off path 2/i.test(p.name)) || caseEntry.cutOffPaths[1];
-          const path3 = caseEntry.cutOffPaths.find((p) => /cut-?off path 3/i.test(p.name)) || caseEntry.cutOffPaths[2];
-          const path4 = caseEntry.cutOffPaths.find((p) => /cut-?off path 4/i.test(p.name)) || caseEntry.cutOffPaths[3];
+          const getPath = (n) => caseEntry.cutOffPaths.find((p) => new RegExp(`cut-?off path\\s*${n}`, 'i').test(p.name)) || caseEntry.cutOffPaths[n - 1];
+          const paths = [1, 2, 3, 4, 5, 6, 7, 8].map(getPath);
           detailLines.push(
-            `| ${caseEntry.lidarLabel} | ${caseEntry.caseNumber} | ${caseEntry.caseLabel} | ${caseEntry.displayOrder} | ${pathToCell(path1)} | ${pathToCell(path2)} | ${pathToCell(path3)} | ${pathToCell(path4)} |`
+            `| ${caseEntry.lidarLabel} | ${caseEntry.caseNumber} | ${caseEntry.caseLabel} | ${caseEntry.displayOrder} | ${paths.map(pathToCell).join(' | ')} |`
           );
 
-          return caseEntry.cutOffPaths.flatMap((path, pathIndex) =>
+          const filteredPaths = caseEntry.cutOffPaths.filter((path, idx) => {
+            if (!selectedPathNum) return true;
+            const byName = new RegExp(`cut-?off path\\s*${selectedPathNum}`, 'i').test(path.name);
+            return byName || idx + 1 === selectedPathNum;
+          });
+
+          return filteredPaths.flatMap((path, pathIndex) =>
             path.fields.map((field, fieldIndex) => ({
               ...field,
               label: `${caseEntry.lidarLabel} - ${path.name} - F${pathIndex + 1}.${fieldIndex + 1}`
