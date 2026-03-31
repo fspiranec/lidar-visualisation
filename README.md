@@ -27,6 +27,7 @@ Simple web app for visualising SICK safety fields from pasted XML content.
 - Legend is rendered below the canvas (not over the plot), to avoid covering coordinate labels.
 - Field dropdown now shows field type and geometry type (`[Fieldtype / PolygonType]`) so contour entries are visible/selectable directly.
 - You can toggle point coordinate labels on/off via the **Show coordinates** checkbox.
+- Monitoring case panel includes a highlighted box showing selected monitoring case number in decimal and 8-bit binary (example: `8 -> 00001000`).
 
 ## Run locally
 

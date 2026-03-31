@@ -123,7 +123,7 @@
             </select>
           </div>
         </div>
-        <div style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <div id="actionRow" style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
           <button id="renderBtn" disabled>Render selected field(s)</button>
           <button id="renderCaseBtn" type="button" disabled>Render monitoring case</button>
           <button id="measureBtn" type="button" disabled>Measure distance</button>
@@ -132,8 +132,8 @@
             <input id="toggleCoords" type="checkbox" checked />
             Show coordinates
           </label>
-          <span class="hint">Coordinates are shown in mm (auto-scaled to screen).</span>
         </div>
+        <div class="hint" style="margin-top:8px;">Coordinates are shown in mm (auto-scaled to screen).</div>
         <div class="msg" id="status"></div>
       </div>
 
@@ -176,7 +176,14 @@
             <label><input type="checkbox" class="cutoff-path-check" value="8" checked /> 8</label>
           </div>
         </div>
-        <pre id="caseDetails" style="margin-top:12px; white-space:pre-wrap; background:#0b1225; border:1px solid rgba(148,163,184,0.35); border-radius:10px; padding:10px; color:#cbd5e1; font-size:13px; line-height:1.45;">Monitoring case details will appear here.</pre>
+        <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 240px; gap:12px; align-items:start;">
+          <pre id="caseDetails" style="white-space:pre-wrap; background:#0b1225; border:1px solid rgba(148,163,184,0.35); border-radius:10px; padding:10px; color:#cbd5e1; font-size:13px; line-height:1.45;">Monitoring case details will appear here.</pre>
+          <div id="caseNumberBadge" style="background:#2b1130; border:2px solid #e879f9; border-radius:10px; padding:12px; color:#f5d0fe; font-size:15px; line-height:1.5;">
+            Monitoring case: -
+            <br/>
+            Binary: --------
+          </div>
+        </div>
       </div>
 
       <div class="card">
@@ -246,6 +253,7 @@
       const monitoringCaseSelect = document.getElementById('monitoringCaseSelect');
       const cutoffPathChecks = [...document.querySelectorAll('.cutoff-path-check')];
       const caseDetails = document.getElementById('caseDetails');
+      const caseNumberBadge = document.getElementById('caseNumberBadge');
       const measureBtn = document.getElementById('measureBtn');
       const clearMeasureBtn = document.getElementById('clearMeasureBtn');
       const toggleCoords = document.getElementById('toggleCoords');
@@ -953,6 +961,9 @@
           return;
         }
         const detailLines = [];
+        const caseNumInt = Number(parsedKey.caseNumber);
+        const caseNumberBinary = Number.isFinite(caseNumInt) ? caseNumInt.toString(2).padStart(8, '0') : '--------';
+        caseNumberBadge.innerHTML = `Monitoring case: ${parsedKey.caseNumber}<br/>Binary: ${caseNumberBinary}`;
 
         const selectedFields = caseEntries.flatMap((caseEntry) => {
           detailLines.push(`Lidar: ${caseEntry.lidarLabel} | Name: ${caseEntry.caseLabel}`);
