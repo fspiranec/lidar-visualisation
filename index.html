@@ -123,7 +123,7 @@
             </select>
           </div>
         </div>
-        <div style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <div id="actionRow" style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
           <button id="renderBtn" disabled>Render selected field(s)</button>
           <button id="renderCaseBtn" type="button" disabled>Render monitoring case</button>
           <button id="measureBtn" type="button" disabled>Measure distance</button>
@@ -132,8 +132,8 @@
             <input id="toggleCoords" type="checkbox" checked />
             Show coordinates
           </label>
-          <span class="hint">Coordinates are shown in mm (auto-scaled to screen).</span>
         </div>
+        <div class="hint" style="margin-top:8px;">Coordinates are shown in mm (auto-scaled to screen).</div>
         <div class="msg" id="status"></div>
       </div>
 
@@ -176,7 +176,14 @@
             <label><input type="checkbox" class="cutoff-path-check" value="8" checked /> 8</label>
           </div>
         </div>
-        <pre id="caseDetails" style="margin-top:12px; white-space:pre-wrap; background:#0b1225; border:1px solid rgba(148,163,184,0.35); border-radius:10px; padding:10px; color:#cbd5e1; font-size:13px; line-height:1.45;">Monitoring case details will appear here.</pre>
+        <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 240px; gap:12px; align-items:start;">
+          <pre id="caseDetails" style="white-space:pre-wrap; background:#0b1225; border:1px solid rgba(148,163,184,0.35); border-radius:10px; padding:10px; color:#cbd5e1; font-size:13px; line-height:1.45;">Monitoring case details will appear here.</pre>
+          <div id="caseNumberBadge" style="background:#2b1130; border:2px solid #e879f9; border-radius:10px; padding:12px; color:#f5d0fe; font-size:15px; line-height:1.5;">
+            Monitoring case: -
+            <br/>
+            Binary: --------
+          </div>
+        </div>
       </div>
 
       <div class="card">
@@ -246,6 +253,7 @@
       const monitoringCaseSelect = document.getElementById('monitoringCaseSelect');
       const cutoffPathChecks = [...document.querySelectorAll('.cutoff-path-check')];
       const caseDetails = document.getElementById('caseDetails');
+      const caseNumberBadge = document.getElementById('caseNumberBadge');
       const measureBtn = document.getElementById('measureBtn');
       const clearMeasureBtn = document.getElementById('clearMeasureBtn');
       const toggleCoords = document.getElementById('toggleCoords');
@@ -347,7 +355,7 @@
         }
         const grouped = new Map();
         merged.forEach((mc) => {
-          const key = mc.caseNumber ? `CN:${mc.caseNumber}` : `NM:${mc.caseLabel}`;
+          const key = JSON.stringify({ caseNumber: String(mc.caseNumber) });
           if (!grouped.has(key)) grouped.set(key, []);
           grouped.get(key).push(mc);
         });
@@ -355,9 +363,10 @@
           .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }))
           .forEach(([key, cases]) => {
             const primary = cases[0];
-            const lidars = [...new Set(cases.map((c) => c.lidarLabel))].join(' + ');
+            const front = cases.find((c) => c.lidarLabel === 'Front Right Lidar');
+            const rear = cases.find((c) => c.lidarLabel === 'Rear Left Lidar');
             monitoringCaseSelect.append(new Option(
-              `Case ${primary.caseNumber} | ${primary.caseLabel} | ${lidars}`,
+              `Case ${primary.caseNumber} | Front: ${front?.caseLabel || 'n/a'} | Rear: ${rear?.caseLabel || 'n/a'}`,
               key
             ));
           });
@@ -406,11 +415,16 @@
           const caseObjectId = normalizeId(caseNode.getAttribute('Id') || idx);
           const caseLabel = caseNode.querySelector('Name')?.textContent?.trim() || caseNode.getAttribute('Name') || `Case ${idx + 1}`;
           const displayOrder = normalizeId(caseNode.querySelector('DisplayOrder')?.textContent?.trim() || caseNode.getAttribute('DisplayOrder') || String(idx));
-          const numericDisplayOrder = Number(displayOrder);
-          const caseNumber = Number.isFinite(numericDisplayOrder) ? String(numericDisplayOrder + 1) : String(idx + 1);
+          const caseNumber = caseNode.querySelector('Activation > CaseNumber')?.textContent?.trim()
+            || caseNode.querySelector('CaseNumber')?.textContent?.trim()
+            || caseNode.getAttribute('CaseNumber')
+            || '';
+          if (!caseNumber) return null;
 
           const cutOffPaths = evals.map((evalNode) => {
             const evalName = evalNode.querySelector('Name')?.textContent?.trim() || evalNode.getAttribute('Name') || 'Cut-off path';
+            const qIndexText = evalNode.querySelector('Q')?.textContent?.trim() || '';
+            const qIndex = Number(qIndexText);
             const matchingCaseRefs = [...evalNode.querySelectorAll('Cases > Case')]
               .filter((c) => normalizeId(c.getAttribute('Id')) === caseObjectId);
 
@@ -451,6 +465,7 @@
 
             return {
               name: evalName,
+              qIndex: Number.isFinite(qIndex) ? qIndex : null,
               userFieldIds,
               resolvedEntries,
               fields: [...new Map(mappedFields.map((f) => [f.id, f])).values()]
@@ -465,7 +480,7 @@
             lidarLabel,
             cutOffPaths
           };
-        });
+        }).filter(Boolean);
       }
 
       function clearMeasurement() {
@@ -918,11 +933,14 @@
           return;
         }
         const allCases = [...monitoringCases1, ...monitoringCases2];
-        const caseEntries = allCases.filter((c) =>
-          selectedKey.startsWith('CN:')
-            ? `CN:${c.caseNumber}` === selectedKey
-            : `NM:${c.caseLabel}` === selectedKey
-        );
+        let parsedKey;
+        try {
+          parsedKey = JSON.parse(selectedKey);
+        } catch {
+          setStatus('Selected monitoring case key is invalid.', true);
+          return;
+        }
+        const caseEntries = allCases.filter((c) => String(c.caseNumber) === String(parsedKey.caseNumber));
         if (caseEntries.length === 0) {
           setStatus('Selected monitoring case was not found.', true);
           return;
@@ -943,21 +961,25 @@
           return;
         }
         const detailLines = [];
+        const caseNumInt = Number(parsedKey.caseNumber);
+        const caseNumberBinary = Number.isFinite(caseNumInt) ? caseNumInt.toString(2).padStart(8, '0') : '--------';
+        caseNumberBadge.innerHTML = `Monitoring case: ${parsedKey.caseNumber}<br/>Binary: ${caseNumberBinary}`;
+
         const selectedFields = caseEntries.flatMap((caseEntry) => {
-          const getPath = (n) => caseEntry.cutOffPaths.find((p) => new RegExp(`cut-?off path\\s*${n}`, 'i').test(p.name)) || caseEntry.cutOffPaths[n - 1];
-          const paths = [1, 2, 3, 4, 5, 6, 7, 8].map(getPath);
-          detailLines.push(`Lidar: ${caseEntry.lidarLabel}`);
-          detailLines.push(`CaseNumber: ${caseEntry.caseNumber}`);
-          detailLines.push(`Name: ${caseEntry.caseLabel}`);
-          detailLines.push(`CaseId: ${caseEntry.caseObjectId}`);
-          detailLines.push(`DisplayOrder: ${caseEntry.displayOrder}`);
-          paths.forEach((p, i) => detailLines.push(`Cut-off path ${i + 1}: ${pathToCell(p)}`));
+          detailLines.push(`Lidar: ${caseEntry.lidarLabel} | Name: ${caseEntry.caseLabel}`);
+          detailLines.push(`CaseNumber: ${caseEntry.caseNumber} | CaseId: ${caseEntry.caseObjectId} | DisplayOrder: ${caseEntry.displayOrder}`);
+          const paths = caseEntry.cutOffPaths;
+          for (let q = 1; q <= 8; q += 1) {
+            const path = paths.find((p) => p.qIndex === q) || paths.find((p) => new RegExp(`cut-?off path\\s*${q}`, 'i').test(p.name)) || null;
+            detailLines.push(`Cut-off path ${q}: ${pathToCell(path)}`);
+          }
           detailLines.push('---');
 
           const filteredPaths = caseEntry.cutOffPaths.filter((path, idx) => {
+            const byQ = path.qIndex && selectedPathNums.includes(path.qIndex);
             const byName = selectedPathNums.some((n) => new RegExp(`cut-?off path\\s*${n}`, 'i').test(path.name));
             const byIndex = selectedPathNums.includes(idx + 1);
-            return byName || byIndex;
+            return byQ || byName || byIndex;
           });
 
           return filteredPaths.flatMap((path, pathIndex) =>
