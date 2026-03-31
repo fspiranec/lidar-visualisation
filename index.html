@@ -348,8 +348,8 @@
       let monitoringCases2 = [];
       let xmlDoc1 = null;
       let xmlDoc2 = null;
-      let xmlFileName1 = "rear-left-edited.xml";
-      let xmlFileName2 = "front-right-edited.xml";
+      let xmlFileName1 = "rear-left.sdxml";
+      let xmlFileName2 = "front-right.sdxml";
       let editMode = false;
       let lastRenderedFields = [];
       let renderedFromCase = false;
@@ -906,7 +906,7 @@
         const file = event.target.files?.[0];
         if (!file) return;
         try {
-          xmlFileName1 = file.name.replace(/\.xml$/i, '') + '-edited.xml';
+          xmlFileName1 = file.name.replace(/\.[^.]+$/, '') + '.sdxml';
           const xmlText = await file.text();
           parseAndLoadXml(xmlText, 1);
         } catch (err) {
@@ -920,7 +920,7 @@
         const file = event.target.files?.[0];
         if (!file) return;
         try {
-          xmlFileName2 = file.name.replace(/\.xml$/i, '') + '-edited.xml';
+          xmlFileName2 = file.name.replace(/\.[^.]+$/, '') + '.sdxml';
           const xmlText = await file.text();
           parseAndLoadXml(xmlText, 2);
         } catch (err) {
