@@ -355,9 +355,10 @@
           .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }))
           .forEach(([key, cases]) => {
             const primary = cases[0];
-            const lidars = [...new Set(cases.map((c) => c.lidarLabel))].join(' + ');
+            const front = cases.find((c) => c.lidarLabel === 'Front Right Lidar');
+            const rear = cases.find((c) => c.lidarLabel === 'Rear Left Lidar');
             monitoringCaseSelect.append(new Option(
-              `Case ${primary.caseNumber} | ${lidars}`,
+              `Case ${primary.caseNumber} | Front: ${front?.caseLabel || 'n/a'} | Rear: ${rear?.caseLabel || 'n/a'}`,
               key
             ));
           });
@@ -951,30 +952,17 @@
           setStatus('Select at least one cut-off path checkbox.', true);
           return;
         }
-        const frontCase = caseEntries.find((c) => c.lidarLabel === 'Front Right Lidar') || null;
-        const rearCase = caseEntries.find((c) => c.lidarLabel === 'Rear Left Lidar') || null;
-        const referenceCase = frontCase || rearCase;
-        const detailLines = [
-          '| CaseNumber | Front Name | Rear Name | Cut-off 1 | Cut-off 2 | Cut-off 3 | Cut-off 4 |',
-          '|---|---|---|---|---|---|---|'
-        ];
-        const getPathByQ = (caseEntry, q) => {
-          if (!caseEntry) return null;
-          return caseEntry.cutOffPaths.find((p) => p.qIndex === q) || caseEntry.cutOffPaths.find((p) => new RegExp(`cut-?off path\\s*${q}`, 'i').test(p.name)) || null;
-        };
-        if (referenceCase) {
-          const mergePathCell = (q) => {
-            const entries = [getPathByQ(frontCase, q), getPathByQ(rearCase, q)].filter(Boolean).map(pathToCell).filter((v) => v && v !== 'not found');
-            if (entries.length === 0) return 'not found';
-            return [...new Set(entries)].join('; ');
-          };
-          detailLines.push(
-            `| ${referenceCase.caseNumber} | ${frontCase?.caseLabel || 'not found'} | ${rearCase?.caseLabel || 'not found'} | ${mergePathCell(1)} | ${mergePathCell(2)} | ${mergePathCell(3)} | ${mergePathCell(4)} |`
-          );
-        }
+        const detailLines = [];
 
         const selectedFields = caseEntries.flatMap((caseEntry) => {
+          detailLines.push(`Lidar: ${caseEntry.lidarLabel} | Name: ${caseEntry.caseLabel}`);
+          detailLines.push(`CaseNumber: ${caseEntry.caseNumber} | CaseId: ${caseEntry.caseObjectId} | DisplayOrder: ${caseEntry.displayOrder}`);
           const paths = caseEntry.cutOffPaths;
+          for (let q = 1; q <= 8; q += 1) {
+            const path = paths.find((p) => p.qIndex === q) || paths.find((p) => new RegExp(`cut-?off path\\s*${q}`, 'i').test(p.name)) || null;
+            detailLines.push(`Cut-off path ${q}: ${pathToCell(path)}`);
+          }
+          detailLines.push('---');
 
           const filteredPaths = caseEntry.cutOffPaths.filter((path, idx) => {
             const byQ = path.qIndex && selectedPathNums.includes(path.qIndex);

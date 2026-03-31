@@ -20,6 +20,7 @@ Simple web app for visualising SICK safety fields from pasted XML content.
 - Monitoring case panel now supports rendering/filtering cut-off paths 1..8 (or all), and output table includes cut-off paths 1..8.
 - Current parser logic: `CaseNumber` comes from `Activation/CaseNumber` (no `+1` logic), while Eval linking uses main case object `@Id` (`Eval/Cases/Case[@Id = Case/@Id]`), with fixed static labels `100=PermRed`, `101=PermGreen`, `102=PermGreenWf`.
 - Cross-lidar monitoring-case pairing uses `Activation/CaseNumber` as the global join key.
+- Monitoring-case details output shows one readable block per lidar (with lidar + case name) and lists cut-off paths 1..8 explicitly.
 - Rendering now centers geometry in the SVG frame, shows an in-canvas color legend (`color -> field name`), and cut-off path filtering is done with checkboxes for paths 1..8.
 - Monitoring case details are shown in a readable multi-line block per lidar/case (instead of one long single-line row).
 - Field parsing now includes all polygon types found under a field (not only `Type="Field"`), so contour-detection polygons can also be rendered when present.
