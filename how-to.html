@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>How To | Lidar Safety Field Visualiser</title>
+    <style>
+      body { margin: 0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: linear-gradient(180deg, #0b1022 0%, #10172f 100%); color: #e5e7eb; }
+      .wrap { max-width: 900px; margin: 0 auto; padding: 24px; }
+      .top-nav { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+      .top-nav a { color: #67e8f9; text-decoration: none; font-weight: 600; border: 1px solid rgba(103,232,249,0.4); background: rgba(15,23,42,0.55); border-radius: 999px; padding: 6px 12px; }
+      .card { background: rgba(17,24,39,0.9); border: 1px solid rgba(148,163,184,0.2); border-radius: 16px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+      h1 { margin-top: 0; }
+      ol { line-height: 1.6; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <nav class="top-nav" aria-label="Main navigation">
+        <a href="index.html">Home</a>
+        <a href="skills.html">Skills</a>
+        <a href="help.html">Help</a>
+        <a href="how-to.html">How To</a>
+      </nav>
+      <div class="card">
+        <h1>How To Use This Tool</h1>
+        <ol>
+          <li>Open the main page and paste or import Rear Left lidar field XML.</li>
+          <li>Paste or import Front Right lidar field XML (optional for single-lidar view).</li>
+          <li>Pick the desired field from each dropdown list.</li>
+          <li>Click <strong>Render selected field(s)</strong> to draw polygons.</li>
+          <li>Load monitoring-case XML for one or both lidars.</li>
+          <li>Select a monitoring case and click <strong>Render monitoring case</strong>.</li>
+          <li>Toggle cutoff path checkboxes (1-8) to filter displayed paths.</li>
+          <li>Use <strong>Measure distance</strong>, then click two points on the map.</li>
+          <li>Use <strong>Clear measure</strong> to reset measurement overlays.</li>
+        </ol>
+      </div>
+    </div>
+  </body>
+</html>

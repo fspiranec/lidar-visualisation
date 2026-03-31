@@ -25,6 +25,24 @@
         margin: 0 auto;
         padding: 24px;
       }
+      .top-nav {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+      }
+      .top-nav a {
+        color: #67e8f9;
+        text-decoration: none;
+        font-weight: 600;
+        border: 1px solid rgba(103, 232, 249, 0.4);
+        background: rgba(15, 23, 42, 0.55);
+        border-radius: 999px;
+        padding: 6px 12px;
+      }
+      .top-nav a:hover {
+        background: rgba(34, 211, 238, 0.2);
+      }
       h1 { margin-top: 0; }
       .card {
         background: rgba(17, 24, 39, 0.9);
@@ -84,6 +102,12 @@
   </head>
   <body>
     <div class="wrap">
+      <nav class="top-nav" aria-label="Main navigation">
+        <a href="index.html">Home</a>
+        <a href="skills.html">Skills</a>
+        <a href="help.html">Help</a>
+        <a href="how-to.html">How To</a>
+      </nav>
       <h1>Lidar Safety Field Visualiser</h1>
       <p class="hint">
         Paste your field XML (SICK fieldset export), choose one field, and the app will draw the polygon.
