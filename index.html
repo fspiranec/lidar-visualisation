@@ -125,13 +125,6 @@
         </div>
         <div id="actionRow" style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
           <button id="renderBtn" disabled>Render selected field(s)</button>
-          <button id="renderCaseBtn" type="button" disabled>Render monitoring case</button>
-          <button id="measureBtn" type="button" disabled>Measure distance</button>
-          <button id="clearMeasureBtn" type="button" disabled>Clear measure</button>
-          <label style="display:flex; align-items:center; gap:6px; font-size:14px; color:#cbd5e1;">
-            <input id="toggleCoords" type="checkbox" checked />
-            Show coordinates
-          </label>
         </div>
         <div class="hint" style="margin-top:8px;">Coordinates are shown in mm (auto-scaled to screen).</div>
         <div class="msg" id="status"></div>
@@ -163,9 +156,14 @@
             <option value="">Load monitoring cases first…</option>
           </select>
         </div>
-        <div style="margin-top:12px;">
-          <label>Cut-off paths to render</label>
-          <div id="cutoffPathChecks" style="display:flex; gap:10px; flex-wrap:wrap; font-size:14px;">
+        <div style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <button id="renderCaseBtn" type="button" disabled>Render monitoring case</button>
+          <label style="display:flex; align-items:center; gap:6px; font-size:14px; color:#cbd5e1;">
+            <input id="toggleCoords" type="checkbox" checked />
+            Show coordinates
+          </label>
+          <label style="display:flex; align-items:center; gap:6px; font-size:14px; color:#cbd5e1;">Paths:</label>
+          <div id="cutoffPathChecks" style="display:flex; gap:8px; flex-wrap:wrap; font-size:14px;">
             <label><input type="checkbox" class="cutoff-path-check" value="1" checked /> 1</label>
             <label><input type="checkbox" class="cutoff-path-check" value="2" checked /> 2</label>
             <label><input type="checkbox" class="cutoff-path-check" value="3" checked /> 3</label>
@@ -187,6 +185,10 @@
       </div>
 
       <div class="card">
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+          <button id="measureBtn" type="button" disabled>Measure distance</button>
+          <button id="clearMeasureBtn" type="button" disabled>Clear measure</button>
+        </div>
         <svg id="canvas" class="viz" viewBox="0 0 900 600" role="img" aria-label="Field visualisation"></svg>
         <div id="legendPanel" style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; font-size:13px;"></div>
       </div>
