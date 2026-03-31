@@ -1207,6 +1207,7 @@
         const idx1 = Number(fieldSelect1.value);
         const idx2 = Number(fieldSelect2.value);
 
+        renderedFromCase = false;
         const selectedFields = [];
         if (Number.isInteger(idx1) && fieldData1[idx1]) {
           fieldData1[idx1].label = 'Rear Left Lidar';
