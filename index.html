@@ -226,6 +226,9 @@
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
           <button id="measureBtn" type="button" disabled>Measure distance</button>
           <button id="clearMeasureBtn" type="button" disabled>Clear measure</button>
+          <button id="zoomInBtn" type="button" disabled>Zoom in</button>
+          <button id="zoomOutBtn" type="button" disabled>Zoom out</button>
+          <button id="zoomResetBtn" type="button" disabled>Reset zoom</button>
           <button id="editModeBtn" type="button" disabled>Edit mode: OFF</button>
           <button id="exportXmlBtn1" type="button">Export Rear Left XML</button>
           <button id="exportXmlBtn2" type="button">Export Front Right XML</button>
@@ -312,6 +315,9 @@
       const caseNumberBadge = document.getElementById('caseNumberBadge');
       const measureBtn = document.getElementById('measureBtn');
       const clearMeasureBtn = document.getElementById('clearMeasureBtn');
+      const zoomInBtn = document.getElementById('zoomInBtn');
+      const zoomOutBtn = document.getElementById('zoomOutBtn');
+      const zoomResetBtn = document.getElementById('zoomResetBtn');
       const editModeBtn = document.getElementById('editModeBtn');
       const exportXmlBtn1 = document.getElementById('exportXmlBtn1');
       const exportXmlBtn2 = document.getElementById('exportXmlBtn2');
@@ -358,6 +364,10 @@
       let draggingPointRef = null;
       let dragStartSource = null;
       let editHistory = [];
+      let zoomLevel = 1;
+      let currentViewBox = { x: 0, y: 0, width: 900, height: 600 };
+      let isPanning = false;
+      let panStart = null;
 
       function setStatus(text, isError = false) {
         statusEl.textContent = text;
@@ -612,7 +622,9 @@
         const margin = 40;
         svg.innerHTML = '';
         legendPanel.innerHTML = '';
-        svg.setAttribute('viewBox', `0 0 ${viewW} ${viewH}`);
+        zoomLevel = 1;
+        currentViewBox = { x: 0, y: 0, width: viewW, height: viewH };
+        svg.setAttribute('viewBox', `${currentViewBox.x} ${currentViewBox.y} ${currentViewBox.width} ${currentViewBox.height}`);
 
         const allPoints = selectedFields.flatMap((f) => f.points).concat([
           { x: lidar1Location.x, y: lidar1Location.y },
@@ -641,6 +653,9 @@
         currentTransform.toSvg = (x, y) => ({ x: centeredX(x), y: centeredY(y) });
         measureBtn.disabled = false;
         clearMeasureBtn.disabled = false;
+        zoomInBtn.disabled = false;
+        zoomOutBtn.disabled = false;
+        zoomResetBtn.disabled = false;
         editModeBtn.disabled = false;
         editModeBtn.textContent = `Edit mode: ${editMode ? 'ON' : 'OFF'}`;
         clearMeasurement();
@@ -738,11 +753,35 @@
         if (!currentTransform) return null;
         const rect = svg.getBoundingClientRect();
         if (!rect.width || !rect.height) return null;
-        const svgX = ((event.clientX - rect.left) / rect.width) * 900;
-        const svgY = ((event.clientY - rect.top) / rect.height) * 600;
+        const svgX = currentViewBox.x + ((event.clientX - rect.left) / rect.width) * currentViewBox.width;
+        const svgY = currentViewBox.y + ((event.clientY - rect.top) / rect.height) * currentViewBox.height;
         const worldX = currentTransform.minX + (svgX - currentTransform.margin - currentTransform.centerShiftX) / currentTransform.scale;
         const worldY = currentTransform.minY + ((currentTransform.viewH - currentTransform.margin - currentTransform.centerShiftY) - svgY) / currentTransform.scale;
         return { x: worldX, y: worldY, svgX, svgY };
+      }
+
+      function applyZoom(nextZoomLevel, focusSvgPoint = null) {
+        if (!currentTransform) return;
+        zoomLevel = Math.max(1, Math.min(5, nextZoomLevel));
+        const baseW = 900;
+        const baseH = 600;
+        const width = baseW / zoomLevel;
+        const height = baseH / zoomLevel;
+        let x = (baseW - width) / 2;
+        let y = (baseH - height) / 2;
+
+        if (focusSvgPoint) {
+          const relX = (focusSvgPoint.x - currentViewBox.x) / currentViewBox.width;
+          const relY = (focusSvgPoint.y - currentViewBox.y) / currentViewBox.height;
+          x = focusSvgPoint.x - (relX * width);
+          y = focusSvgPoint.y - (relY * height);
+        }
+
+        x = Math.max(0, Math.min(baseW - width, x));
+        y = Math.max(0, Math.min(baseH - height, y));
+        currentViewBox = { x, y, width, height };
+        svg.setAttribute('viewBox', `${x} ${y} ${width} ${height}`);
+        setStatus(`Zoom: ${zoomLevel.toFixed(1)}x`);
       }
 
       function renderMeasurement() {
@@ -1035,6 +1074,18 @@
         setStatus('Measurement cleared.');
       });
 
+      zoomInBtn.addEventListener('click', () => {
+        applyZoom(zoomLevel + 0.25);
+      });
+
+      zoomOutBtn.addEventListener('click', () => {
+        applyZoom(zoomLevel - 0.25);
+      });
+
+      zoomResetBtn.addEventListener('click', () => {
+        applyZoom(1);
+      });
+
       toggleCoords.addEventListener('change', () => {
         setStatus(`Coordinate labels ${toggleCoords.checked ? 'enabled' : 'hidden'}. Click Render to refresh view.`);
       });
@@ -1070,6 +1121,22 @@
       });
 
       svg.addEventListener('mousemove', (event) => {
+        if (isPanning && panStart) {
+          const baseW = 900;
+          const baseH = 600;
+          const rect = svg.getBoundingClientRect();
+          const dxPx = event.clientX - panStart.clientX;
+          const dyPx = event.clientY - panStart.clientY;
+          const dxSvg = (dxPx / rect.width) * panStart.viewBox.width;
+          const dySvg = (dyPx / rect.height) * panStart.viewBox.height;
+          const maxX = baseW - panStart.viewBox.width;
+          const maxY = baseH - panStart.viewBox.height;
+          const nextX = Math.max(0, Math.min(maxX, panStart.viewBox.x - dxSvg));
+          const nextY = Math.max(0, Math.min(maxY, panStart.viewBox.y - dySvg));
+          currentViewBox = { ...currentViewBox, x: nextX, y: nextY };
+          svg.setAttribute('viewBox', `${currentViewBox.x} ${currentViewBox.y} ${currentViewBox.width} ${currentViewBox.height}`);
+          return;
+        }
         if (!draggingPointRef || !currentTransform) return;
         const world = svgClientToWorld(event);
         if (!world) return;
@@ -1080,6 +1147,10 @@
       });
 
       window.addEventListener('mouseup', () => {
+        if (isPanning) {
+          isPanning = false;
+          panStart = null;
+        }
         if (draggingPointRef) {
           const endSource = { ...(draggingPointRef.field.originalPoints[draggingPointRef.pointIdx]) };
           if (dragStartSource && (dragStartSource.x !== endSource.x || dragStartSource.y !== endSource.y)) {
@@ -1095,6 +1166,33 @@
         draggingPointRef = null;
         dragStartSource = null;
       });
+
+      svg.addEventListener('mousedown', (event) => {
+        if (event.button !== 1) return;
+        if (zoomLevel <= 1) return;
+        event.preventDefault();
+        isPanning = true;
+        panStart = {
+          clientX: event.clientX,
+          clientY: event.clientY,
+          viewBox: { ...currentViewBox }
+        };
+      });
+
+      svg.addEventListener('auxclick', (event) => {
+        if (event.button === 1) event.preventDefault();
+      });
+
+      svg.addEventListener('wheel', (event) => {
+        if (!currentTransform) return;
+        event.preventDefault();
+        const rect = svg.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        const focusSvgX = currentViewBox.x + ((event.clientX - rect.left) / rect.width) * currentViewBox.width;
+        const focusSvgY = currentViewBox.y + ((event.clientY - rect.top) / rect.height) * currentViewBox.height;
+        const delta = event.deltaY < 0 ? 0.2 : -0.2;
+        applyZoom(zoomLevel + delta, { x: focusSvgX, y: focusSvgY });
+      }, { passive: false });
 
       renderBtn.addEventListener('click', () => {
         const idx1 = Number(fieldSelect1.value);
