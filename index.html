@@ -240,6 +240,7 @@
             <input id="editPointY" type="number" step="1" />
           </div>
           <button id="applyPointBtn" type="button">Apply point</button>
+          <button id="undoEditBtn" type="button" disabled>Undo (0/5)</button>
           <div id="editPointMeta" class="hint"></div>
         </div>
         <svg id="canvas" class="viz" viewBox="0 0 900 600" role="img" aria-label="Field visualisation"></svg>
@@ -318,6 +319,7 @@
       const editPointX = document.getElementById('editPointX');
       const editPointY = document.getElementById('editPointY');
       const applyPointBtn = document.getElementById('applyPointBtn');
+      const undoEditBtn = document.getElementById('undoEditBtn');
       const editPointMeta = document.getElementById('editPointMeta');
       const toggleCoords = document.getElementById('toggleCoords');
       const openCasesDialogBtn1 = document.getElementById('openCasesDialogBtn1');
@@ -354,6 +356,8 @@
       let lastRenderedFields = [];
       let selectedPointRef = null;
       let draggingPointRef = null;
+      let dragStartSource = null;
+      let editHistory = [];
 
       function setStatus(text, isError = false) {
         statusEl.textContent = text;
@@ -848,6 +852,17 @@
         }
       }
 
+      function updateUndoButton() {
+        undoEditBtn.disabled = editHistory.length === 0;
+        undoEditBtn.textContent = `Undo (${editHistory.length}/5)`;
+      }
+
+      function pushEditHistory(entry) {
+        editHistory.push(entry);
+        if (editHistory.length > 5) editHistory = editHistory.slice(editHistory.length - 5);
+        updateUndoButton();
+      }
+
       function selectEditablePoint(pointRef) {
         selectedPointRef = pointRef;
         const src = pointRef.field.originalPoints?.[pointRef.pointIdx]
@@ -1051,6 +1066,7 @@
         if (!field) return;
         draggingPointRef = { field, pointIdx: Number(target.dataset.pointIndex) };
         selectEditablePoint(draggingPointRef);
+        dragStartSource = { ...(draggingPointRef.field.originalPoints[draggingPointRef.pointIdx]) };
       });
 
       svg.addEventListener('mousemove', (event) => {
@@ -1064,8 +1080,20 @@
       });
 
       window.addEventListener('mouseup', () => {
-        if (draggingPointRef) setStatus('Point updated. Export XML to save your edit.');
+        if (draggingPointRef) {
+          const endSource = { ...(draggingPointRef.field.originalPoints[draggingPointRef.pointIdx]) };
+          if (dragStartSource && (dragStartSource.x !== endSource.x || dragStartSource.y !== endSource.y)) {
+            pushEditHistory({
+              field: draggingPointRef.field,
+              pointIdx: draggingPointRef.pointIdx,
+              prevSource: dragStartSource,
+              newSource: endSource
+            });
+          }
+          setStatus('Point updated. Export XML to save your edit.');
+        }
         draggingPointRef = null;
+        dragStartSource = null;
       });
 
       renderBtn.addEventListener('click', () => {
@@ -1177,6 +1205,10 @@
         editMode = !editMode;
         editPanel.style.display = editMode ? 'flex' : 'none';
         if (!editMode) selectedPointRef = null;
+        if (!editMode) {
+          editHistory = [];
+          updateUndoButton();
+        }
         renderField(lastRenderedFields);
       });
 
@@ -1191,10 +1223,33 @@
           setStatus('Please enter valid numeric X and Y values.', true);
           return;
         }
+        const prevSource = { ...(selectedPointRef.field.originalPoints[selectedPointRef.pointIdx]) };
         applyPointUpdate(selectedPointRef, x, y);
+        const newSource = { ...(selectedPointRef.field.originalPoints[selectedPointRef.pointIdx]) };
+        if (prevSource.x !== newSource.x || prevSource.y !== newSource.y) {
+          pushEditHistory({
+            field: selectedPointRef.field,
+            pointIdx: selectedPointRef.pointIdx,
+            prevSource,
+            newSource
+          });
+        }
         renderField(lastRenderedFields);
         selectEditablePoint(selectedPointRef);
         setStatus('Point updated from manual coordinates. Export XML to save.');
+      });
+
+      undoEditBtn.addEventListener('click', () => {
+        const lastEdit = editHistory.pop();
+        if (!lastEdit) {
+          updateUndoButton();
+          return;
+        }
+        applyPointUpdate({ field: lastEdit.field, pointIdx: lastEdit.pointIdx }, lastEdit.prevSource.x, lastEdit.prevSource.y);
+        renderField(lastRenderedFields);
+        selectEditablePoint({ field: lastEdit.field, pointIdx: lastEdit.pointIdx });
+        updateUndoButton();
+        setStatus('Last edit undone.');
       });
 
       exportXmlBtn1.addEventListener('click', () => downloadXmlDoc(xmlDoc1, xmlFileName1));
