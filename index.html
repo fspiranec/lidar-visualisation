@@ -347,8 +347,7 @@
         }
         const grouped = new Map();
         merged.forEach((mc) => {
-          const normalizedName = mc.caseLabel.toLowerCase().replace(/\s+/g, ' ').trim();
-          const key = JSON.stringify({ caseNumber: String(mc.caseNumber), normalizedName });
+          const key = JSON.stringify({ caseNumber: String(mc.caseNumber) });
           if (!grouped.has(key)) grouped.set(key, []);
           grouped.get(key).push(mc);
         });
@@ -358,7 +357,7 @@
             const primary = cases[0];
             const lidars = [...new Set(cases.map((c) => c.lidarLabel))].join(' + ');
             monitoringCaseSelect.append(new Option(
-              `Case ${primary.caseNumber} | ${primary.caseLabel} | ${lidars}`,
+              `Case ${primary.caseNumber} | ${lidars}`,
               key
             ));
           });
@@ -407,11 +406,16 @@
           const caseObjectId = normalizeId(caseNode.getAttribute('Id') || idx);
           const caseLabel = caseNode.querySelector('Name')?.textContent?.trim() || caseNode.getAttribute('Name') || `Case ${idx + 1}`;
           const displayOrder = normalizeId(caseNode.querySelector('DisplayOrder')?.textContent?.trim() || caseNode.getAttribute('DisplayOrder') || String(idx));
-          const numericDisplayOrder = Number(displayOrder);
-          const caseNumber = Number.isFinite(numericDisplayOrder) ? String(numericDisplayOrder + 1) : String(idx + 1);
+          const caseNumber = caseNode.querySelector('Activation > CaseNumber')?.textContent?.trim()
+            || caseNode.querySelector('CaseNumber')?.textContent?.trim()
+            || caseNode.getAttribute('CaseNumber')
+            || '';
+          if (!caseNumber) return null;
 
           const cutOffPaths = evals.map((evalNode) => {
             const evalName = evalNode.querySelector('Name')?.textContent?.trim() || evalNode.getAttribute('Name') || 'Cut-off path';
+            const qIndexText = evalNode.querySelector('Q')?.textContent?.trim() || '';
+            const qIndex = Number(qIndexText);
             const matchingCaseRefs = [...evalNode.querySelectorAll('Cases > Case')]
               .filter((c) => normalizeId(c.getAttribute('Id')) === caseObjectId);
 
@@ -452,6 +456,7 @@
 
             return {
               name: evalName,
+              qIndex: Number.isFinite(qIndex) ? qIndex : null,
               userFieldIds,
               resolvedEntries,
               fields: [...new Map(mappedFields.map((f) => [f.id, f])).values()]
@@ -466,7 +471,7 @@
             lidarLabel,
             cutOffPaths
           };
-        });
+        }).filter(Boolean);
       }
 
       function clearMeasurement() {
@@ -926,10 +931,7 @@
           setStatus('Selected monitoring case key is invalid.', true);
           return;
         }
-        const caseEntries = allCases.filter((c) => {
-          const normalizedName = c.caseLabel.toLowerCase().replace(/\s+/g, ' ').trim();
-          return String(c.caseNumber) === String(parsedKey.caseNumber) && normalizedName === parsedKey.normalizedName;
-        });
+        const caseEntries = allCases.filter((c) => String(c.caseNumber) === String(parsedKey.caseNumber));
         if (caseEntries.length === 0) {
           setStatus('Selected monitoring case was not found.', true);
           return;
@@ -949,22 +951,36 @@
           setStatus('Select at least one cut-off path checkbox.', true);
           return;
         }
-        const detailLines = [];
+        const frontCase = caseEntries.find((c) => c.lidarLabel === 'Front Right Lidar') || null;
+        const rearCase = caseEntries.find((c) => c.lidarLabel === 'Rear Left Lidar') || null;
+        const referenceCase = frontCase || rearCase;
+        const detailLines = [
+          '| CaseNumber | Front Name | Rear Name | Cut-off 1 | Cut-off 2 | Cut-off 3 | Cut-off 4 |',
+          '|---|---|---|---|---|---|---|'
+        ];
+        const getPathByQ = (caseEntry, q) => {
+          if (!caseEntry) return null;
+          return caseEntry.cutOffPaths.find((p) => p.qIndex === q) || caseEntry.cutOffPaths.find((p) => new RegExp(`cut-?off path\\s*${q}`, 'i').test(p.name)) || null;
+        };
+        if (referenceCase) {
+          const mergePathCell = (q) => {
+            const entries = [getPathByQ(frontCase, q), getPathByQ(rearCase, q)].filter(Boolean).map(pathToCell).filter((v) => v && v !== 'not found');
+            if (entries.length === 0) return 'not found';
+            return [...new Set(entries)].join('; ');
+          };
+          detailLines.push(
+            `| ${referenceCase.caseNumber} | ${frontCase?.caseLabel || 'not found'} | ${rearCase?.caseLabel || 'not found'} | ${mergePathCell(1)} | ${mergePathCell(2)} | ${mergePathCell(3)} | ${mergePathCell(4)} |`
+          );
+        }
+
         const selectedFields = caseEntries.flatMap((caseEntry) => {
-          const getPath = (n) => caseEntry.cutOffPaths.find((p) => new RegExp(`cut-?off path\\s*${n}`, 'i').test(p.name)) || caseEntry.cutOffPaths[n - 1];
-          const paths = [1, 2, 3, 4, 5, 6, 7, 8].map(getPath);
-          detailLines.push(`Lidar: ${caseEntry.lidarLabel}`);
-          detailLines.push(`CaseNumber: ${caseEntry.caseNumber}`);
-          detailLines.push(`Name: ${caseEntry.caseLabel}`);
-          detailLines.push(`CaseId: ${caseEntry.caseObjectId}`);
-          detailLines.push(`DisplayOrder: ${caseEntry.displayOrder}`);
-          paths.forEach((p, i) => detailLines.push(`Cut-off path ${i + 1}: ${pathToCell(p)}`));
-          detailLines.push('---');
+          const paths = caseEntry.cutOffPaths;
 
           const filteredPaths = caseEntry.cutOffPaths.filter((path, idx) => {
+            const byQ = path.qIndex && selectedPathNums.includes(path.qIndex);
             const byName = selectedPathNums.some((n) => new RegExp(`cut-?off path\\s*${n}`, 'i').test(path.name));
             const byIndex = selectedPathNums.includes(idx + 1);
-            return byName || byIndex;
+            return byQ || byName || byIndex;
           });
 
           return filteredPaths.flatMap((path, pathIndex) =>
