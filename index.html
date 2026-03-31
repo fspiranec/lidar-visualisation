@@ -94,6 +94,20 @@
         font-size: 14px;
         min-height: 20px;
       }
+      .edit-panel {
+        display: flex;
+        gap: 8px;
+        align-items: end;
+        flex-wrap: wrap;
+      }
+      .edit-panel input[type="number"] {
+        width: 140px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: var(--panel-light);
+        color: var(--text);
+        padding: 8px;
+        border-radius: 8px;
+      }
       @media (max-width: 760px) {
         .row { grid-template-columns: 1fr; }
         .viz { min-height: 420px; }
@@ -212,6 +226,21 @@
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
           <button id="measureBtn" type="button" disabled>Measure distance</button>
           <button id="clearMeasureBtn" type="button" disabled>Clear measure</button>
+          <button id="editModeBtn" type="button" disabled>Edit mode: OFF</button>
+          <button id="exportXmlBtn1" type="button">Export Rear Left XML</button>
+          <button id="exportXmlBtn2" type="button">Export Front Right XML</button>
+        </div>
+        <div class="edit-panel" id="editPanel" style="display:none; margin-bottom:10px;">
+          <div>
+            <label for="editPointX">Point X (file coordinate)</label>
+            <input id="editPointX" type="number" step="1" />
+          </div>
+          <div>
+            <label for="editPointY">Point Y (file coordinate)</label>
+            <input id="editPointY" type="number" step="1" />
+          </div>
+          <button id="applyPointBtn" type="button">Apply point</button>
+          <div id="editPointMeta" class="hint"></div>
         </div>
         <svg id="canvas" class="viz" viewBox="0 0 900 600" role="img" aria-label="Field visualisation"></svg>
         <div id="legendPanel" style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; font-size:13px;"></div>
@@ -282,6 +311,14 @@
       const caseNumberBadge = document.getElementById('caseNumberBadge');
       const measureBtn = document.getElementById('measureBtn');
       const clearMeasureBtn = document.getElementById('clearMeasureBtn');
+      const editModeBtn = document.getElementById('editModeBtn');
+      const exportXmlBtn1 = document.getElementById('exportXmlBtn1');
+      const exportXmlBtn2 = document.getElementById('exportXmlBtn2');
+      const editPanel = document.getElementById('editPanel');
+      const editPointX = document.getElementById('editPointX');
+      const editPointY = document.getElementById('editPointY');
+      const applyPointBtn = document.getElementById('applyPointBtn');
+      const editPointMeta = document.getElementById('editPointMeta');
       const toggleCoords = document.getElementById('toggleCoords');
       const openCasesDialogBtn1 = document.getElementById('openCasesDialogBtn1');
       const importCasesBtn1 = document.getElementById('importCasesBtn1');
@@ -309,20 +346,22 @@
       let measurePoints = [];
       let monitoringCases1 = [];
       let monitoringCases2 = [];
+      let xmlDoc1 = null;
+      let xmlDoc2 = null;
+      let xmlFileName1 = "rear-left-edited.xml";
+      let xmlFileName2 = "front-right-edited.xml";
+      let editMode = false;
+      let lastRenderedFields = [];
+      let renderedFromCase = false;
+      let selectedPointRef = null;
+      let draggingPointRef = null;
 
       function setStatus(text, isError = false) {
         statusEl.textContent = text;
         statusEl.style.color = isError ? '#fda4af' : '#86efac';
       }
 
-      function parseFields(xmlText) {
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(xmlText, 'application/xml');
-
-        if (xml.querySelector('parsererror')) {
-          throw new Error('Invalid XML format.');
-        }
-
+      function parseFields(xml) {
         const fieldsets = [...xml.querySelectorAll('Fieldset')];
         const extracted = [];
 
@@ -339,7 +378,8 @@
             const uniqueGeometryCandidates = [...new Set(geometryCandidates)];
 
             for (const geometryNode of uniqueGeometryCandidates) {
-              const points = [...geometryNode.querySelectorAll('Point')]
+              const pointNodes = [...geometryNode.querySelectorAll('Point')];
+              const points = pointNodes
                 .map((pt) => ({
                   x: Number(pt.getAttribute('X')),
                   y: Number(pt.getAttribute('Y'))
@@ -356,6 +396,7 @@
                   fieldType,
                   polygonType,
                   points,
+                  pointNodes,
                   userFieldId: field.getAttribute('UserFieldId') || field.getAttribute('Id') || null
                 });
               }
@@ -594,8 +635,11 @@
         const centeredX = (x) => mapX(x) + centerShiftX;
         const centeredY = (y) => mapY(y) - centerShiftY;
         currentTransform = { minX, minY, scale, margin, viewH, centerShiftX, centerShiftY };
+        currentTransform.toSvg = (x, y) => ({ x: centeredX(x), y: centeredY(y) });
         measureBtn.disabled = false;
         clearMeasureBtn.disabled = false;
+        editModeBtn.disabled = renderedFromCase;
+        editModeBtn.textContent = `Edit mode: ${editMode ? 'ON' : 'OFF'}`;
         clearMeasurement();
         setMeasureMode(false);
 
@@ -623,8 +667,11 @@
             const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             c.setAttribute('cx', centeredX(p.x));
             c.setAttribute('cy', centeredY(p.y));
-            c.setAttribute('r', '3');
+            c.setAttribute('r', editMode ? '5' : '3');
             c.setAttribute('fill', color.point);
+            c.setAttribute('data-field-index', String(idx));
+            c.setAttribute('data-point-index', String(pointIdx));
+            c.style.cursor = editMode ? 'grab' : 'default';
             svg.append(c);
 
             if (toggleCoords.checked) {
@@ -731,11 +778,16 @@
 
       function parseAndLoadXml(text, lidarId) {
         try {
-          const parsedFields = parseFields(text);
+          const parser = new DOMParser();
+          const xml = parser.parseFromString(text, 'application/xml');
+          if (xml.querySelector('parsererror')) throw new Error('Invalid XML format.');
+          const parsedFields = parseFields(xml);
 
           if (lidarId === 2) {
+            xmlDoc2 = xml;
             fieldData2 = parsedFields.map((f) => ({
               ...f,
+              lidarId: 2,
               originalPoints: f.points.map((p) => ({ x: p.x, y: p.y })),
               points: f.points.map((p) => ({
                 x: (-p.x) + lidar2Offset.x,
@@ -744,8 +796,10 @@
             }));
             populateSelect(fieldSelect2, fieldData2, 'No valid fields found');
           } else {
+            xmlDoc1 = xml;
             fieldData1 = parsedFields.map((f) => ({
               ...f,
+              lidarId: 1,
               originalPoints: f.points.map((p) => ({ x: p.x, y: p.y }))
             }));
             populateSelect(fieldSelect1, fieldData1, 'No valid fields found');
@@ -761,14 +815,62 @@
         } catch (err) {
           if (lidarId === 2) {
             fieldData2 = [];
+            xmlDoc2 = null;
             populateSelect(fieldSelect2, fieldData2, 'No valid fields found');
           } else {
             fieldData1 = [];
+            xmlDoc1 = null;
             populateSelect(fieldSelect1, fieldData1, 'No valid fields found');
           }
           const lidarName = lidarId === 1 ? 'Rear Left Lidar' : 'Front Right Lidar';
           setStatus(err instanceof Error ? `${lidarName}: ${err.message}` : `Could not parse ${lidarName} XML.`, true);
         }
+      }
+
+      function worldToSource(lidarId, worldPoint) {
+        if (lidarId === 2) return { x: -worldPoint.x + lidar2Offset.x, y: -worldPoint.y + lidar2Offset.y };
+        return { x: worldPoint.x, y: worldPoint.y };
+      }
+
+      function sourceToWorld(lidarId, sourcePoint) {
+        if (lidarId === 2) return { x: -sourcePoint.x + lidar2Offset.x, y: -sourcePoint.y + lidar2Offset.y };
+        return { x: sourcePoint.x, y: sourcePoint.y };
+      }
+
+      function applyPointUpdate(pointRef, sourceX, sourceY) {
+        const src = { x: Math.round(sourceX), y: Math.round(sourceY) };
+        const world = sourceToWorld(pointRef.field.lidarId, src);
+        pointRef.field.originalPoints[pointRef.pointIdx] = { ...src };
+        pointRef.field.points[pointRef.pointIdx] = { ...world };
+        const pointNode = pointRef.field.pointNodes?.[pointRef.pointIdx];
+        if (pointNode) {
+          pointNode.setAttribute('X', String(src.x));
+          pointNode.setAttribute('Y', String(src.y));
+        }
+      }
+
+      function selectEditablePoint(pointRef) {
+        selectedPointRef = pointRef;
+        const src = pointRef.field.originalPoints?.[pointRef.pointIdx]
+          || worldToSource(pointRef.field.lidarId, pointRef.field.points[pointRef.pointIdx]);
+        editPointX.value = String(Math.round(src.x));
+        editPointY.value = String(Math.round(src.y));
+        editPointMeta.textContent = `${pointRef.field.label} | point #${pointRef.pointIdx + 1}`;
+      }
+
+      function downloadXmlDoc(doc, fileName) {
+        if (!doc) {
+          setStatus('No XML loaded for export.', true);
+          return;
+        }
+        const xmlText = new XMLSerializer().serializeToString(doc);
+        const blob = new Blob([xmlText], { type: 'application/xml' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
       }
 
       openPasteDialogBtn1.addEventListener('click', () => {
@@ -804,6 +906,7 @@
         const file = event.target.files?.[0];
         if (!file) return;
         try {
+          xmlFileName1 = file.name.replace(/\.xml$/i, '') + '-edited.xml';
           const xmlText = await file.text();
           parseAndLoadXml(xmlText, 1);
         } catch (err) {
@@ -817,6 +920,7 @@
         const file = event.target.files?.[0];
         if (!file) return;
         try {
+          xmlFileName2 = file.name.replace(/\.xml$/i, '') + '-edited.xml';
           const xmlText = await file.text();
           parseAndLoadXml(xmlText, 2);
         } catch (err) {
@@ -922,6 +1026,13 @@
       });
 
       svg.addEventListener('click', (event) => {
+        if (editMode && !renderedFromCase) {
+          const target = event.target;
+          if (target instanceof SVGCircleElement && target.dataset.fieldIndex && target.dataset.pointIndex) {
+            const field = lastRenderedFields[Number(target.dataset.fieldIndex)];
+            if (field) selectEditablePoint({ field, pointIdx: Number(target.dataset.pointIndex) });
+          }
+        }
         if (!measureMode) return;
         const point = svgClientToWorld(event);
         if (!point) return;
@@ -932,16 +1043,45 @@
         }
       });
 
+      svg.addEventListener('mousedown', (event) => {
+        if (!editMode || renderedFromCase) return;
+        const target = event.target;
+        if (!(target instanceof SVGCircleElement)) return;
+        if (!target.dataset.fieldIndex || !target.dataset.pointIndex) return;
+        const field = lastRenderedFields[Number(target.dataset.fieldIndex)];
+        if (!field) return;
+        draggingPointRef = { field, pointIdx: Number(target.dataset.pointIndex) };
+        selectEditablePoint(draggingPointRef);
+      });
+
+      svg.addEventListener('mousemove', (event) => {
+        if (!draggingPointRef || !currentTransform) return;
+        const world = svgClientToWorld(event);
+        if (!world) return;
+        const source = worldToSource(draggingPointRef.field.lidarId, world);
+        applyPointUpdate(draggingPointRef, source.x, source.y);
+        renderField(lastRenderedFields);
+        selectEditablePoint(draggingPointRef);
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (draggingPointRef) setStatus('Point updated. Export XML to save your edit.');
+        draggingPointRef = null;
+      });
+
       renderBtn.addEventListener('click', () => {
         const idx1 = Number(fieldSelect1.value);
         const idx2 = Number(fieldSelect2.value);
 
+        renderedFromCase = false;
         const selectedFields = [];
         if (Number.isInteger(idx1) && fieldData1[idx1]) {
-          selectedFields.push({ ...fieldData1[idx1], label: 'Rear Left Lidar' });
+          fieldData1[idx1].label = 'Rear Left Lidar';
+          selectedFields.push(fieldData1[idx1]);
         }
         if (Number.isInteger(idx2) && fieldData2[idx2]) {
-          selectedFields.push({ ...fieldData2[idx2], label: 'Front Right Lidar' });
+          fieldData2[idx2].label = 'Front Right Lidar';
+          selectedFields.push(fieldData2[idx2]);
         }
 
         if (selectedFields.length === 0) {
@@ -949,6 +1089,8 @@
           return;
         }
 
+        lastRenderedFields = selectedFields;
+        editPanel.style.display = editMode ? 'flex' : 'none';
         renderField(selectedFields);
       });
 
@@ -1023,8 +1165,47 @@
           setStatus('No matching fields found under selected monitoring case for imported lidar fields.', true);
           return;
         }
+        renderedFromCase = true;
+        editMode = false;
+        editPanel.style.display = 'none';
+        lastRenderedFields = uniqueSelectedFields;
         renderField(uniqueSelectedFields);
       });
+
+      editModeBtn.addEventListener('click', () => {
+        if (renderedFromCase) {
+          setStatus('Edit mode is available for direct field rendering only.', true);
+          return;
+        }
+        if (lastRenderedFields.length === 0) {
+          setStatus('Render a field first before entering edit mode.', true);
+          return;
+        }
+        editMode = !editMode;
+        editPanel.style.display = editMode ? 'flex' : 'none';
+        if (!editMode) selectedPointRef = null;
+        renderField(lastRenderedFields);
+      });
+
+      applyPointBtn.addEventListener('click', () => {
+        if (!selectedPointRef) {
+          setStatus('Select a point first (click a dot).', true);
+          return;
+        }
+        const x = Number(editPointX.value);
+        const y = Number(editPointY.value);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) {
+          setStatus('Please enter valid numeric X and Y values.', true);
+          return;
+        }
+        applyPointUpdate(selectedPointRef, x, y);
+        renderField(lastRenderedFields);
+        selectEditablePoint(selectedPointRef);
+        setStatus('Point updated from manual coordinates. Export XML to save.');
+      });
+
+      exportXmlBtn1.addEventListener('click', () => downloadXmlDoc(xmlDoc1, xmlFileName1));
+      exportXmlBtn2.addEventListener('click', () => downloadXmlDoc(xmlDoc2, xmlFileName2));
     </script>
   </body>
 </html>
