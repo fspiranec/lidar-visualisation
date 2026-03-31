@@ -352,7 +352,6 @@
       let xmlFileName2 = "front-right.sdxml";
       let editMode = false;
       let lastRenderedFields = [];
-      let renderedFromCase = false;
       let selectedPointRef = null;
       let draggingPointRef = null;
 
@@ -638,7 +637,7 @@
         currentTransform.toSvg = (x, y) => ({ x: centeredX(x), y: centeredY(y) });
         measureBtn.disabled = false;
         clearMeasureBtn.disabled = false;
-        editModeBtn.disabled = renderedFromCase;
+        editModeBtn.disabled = false;
         editModeBtn.textContent = `Edit mode: ${editMode ? 'ON' : 'OFF'}`;
         clearMeasurement();
         setMeasureMode(false);
@@ -1026,7 +1025,7 @@
       });
 
       svg.addEventListener('click', (event) => {
-        if (editMode && !renderedFromCase) {
+        if (editMode) {
           const target = event.target;
           if (target instanceof SVGCircleElement && target.dataset.fieldIndex && target.dataset.pointIndex) {
             const field = lastRenderedFields[Number(target.dataset.fieldIndex)];
@@ -1044,7 +1043,7 @@
       });
 
       svg.addEventListener('mousedown', (event) => {
-        if (!editMode || renderedFromCase) return;
+        if (!editMode) return;
         const target = event.target;
         if (!(target instanceof SVGCircleElement)) return;
         if (!target.dataset.fieldIndex || !target.dataset.pointIndex) return;
@@ -1165,18 +1164,12 @@
           setStatus('No matching fields found under selected monitoring case for imported lidar fields.', true);
           return;
         }
-        renderedFromCase = true;
-        editMode = false;
-        editPanel.style.display = 'none';
         lastRenderedFields = uniqueSelectedFields;
+        editPanel.style.display = editMode ? 'flex' : 'none';
         renderField(uniqueSelectedFields);
       });
 
       editModeBtn.addEventListener('click', () => {
-        if (renderedFromCase) {
-          setStatus('Edit mode is available for direct field rendering only.', true);
-          return;
-        }
         if (lastRenderedFields.length === 0) {
           setStatus('Render a field first before entering edit mode.', true);
           return;
