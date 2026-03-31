@@ -22,7 +22,7 @@ Simple web app for visualising SICK safety fields from pasted XML content.
 - Cross-lidar monitoring-case pairing uses `Activation/CaseNumber` as the global join key.
 - Monitoring-case details output shows one readable block per lidar (with lidar + case name) and lists cut-off paths 1..8 explicitly.
 - Rendering now centers geometry in the SVG frame, shows an in-canvas color legend (`color -> field name`), and cut-off path filtering is done with checkboxes for paths 1..8.
-- Cut-off path checkboxes (1..8) are placed in the top action toolbar next to render/measure controls for quicker workflow.
+- Monitoring-case controls now contain `Render monitoring case`, `Show coordinates`, and cut-off path checkboxes; measurement controls are placed above the render canvas.
 - Monitoring case details are shown in a readable multi-line block per lidar/case (instead of one long single-line row).
 - Field parsing now includes all polygon types found under a field (not only `Type="Field"`), so contour-detection polygons can also be rendered when present.
 - Legend is rendered below the canvas (not over the plot), to avoid covering coordinate labels.

@@ -125,24 +125,6 @@
         </div>
         <div id="actionRow" style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
           <button id="renderBtn" disabled>Render selected field(s)</button>
-          <button id="renderCaseBtn" type="button" disabled>Render monitoring case</button>
-          <button id="measureBtn" type="button" disabled>Measure distance</button>
-          <button id="clearMeasureBtn" type="button" disabled>Clear measure</button>
-          <label style="display:flex; align-items:center; gap:6px; font-size:14px; color:#cbd5e1;">
-            <input id="toggleCoords" type="checkbox" checked />
-            Show coordinates
-          </label>
-          <label style="display:flex; align-items:center; gap:6px; font-size:14px; color:#cbd5e1;">Paths:</label>
-          <div id="cutoffPathChecks" style="display:flex; gap:8px; flex-wrap:wrap; font-size:14px;">
-            <label><input type="checkbox" class="cutoff-path-check" value="1" checked /> 1</label>
-            <label><input type="checkbox" class="cutoff-path-check" value="2" checked /> 2</label>
-            <label><input type="checkbox" class="cutoff-path-check" value="3" checked /> 3</label>
-            <label><input type="checkbox" class="cutoff-path-check" value="4" checked /> 4</label>
-            <label><input type="checkbox" class="cutoff-path-check" value="5" checked /> 5</label>
-            <label><input type="checkbox" class="cutoff-path-check" value="6" checked /> 6</label>
-            <label><input type="checkbox" class="cutoff-path-check" value="7" checked /> 7</label>
-            <label><input type="checkbox" class="cutoff-path-check" value="8" checked /> 8</label>
-          </div>
         </div>
         <div class="hint" style="margin-top:8px;">Coordinates are shown in mm (auto-scaled to screen).</div>
         <div class="msg" id="status"></div>
@@ -174,6 +156,24 @@
             <option value="">Load monitoring cases first…</option>
           </select>
         </div>
+        <div style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <button id="renderCaseBtn" type="button" disabled>Render monitoring case</button>
+          <label style="display:flex; align-items:center; gap:6px; font-size:14px; color:#cbd5e1;">
+            <input id="toggleCoords" type="checkbox" checked />
+            Show coordinates
+          </label>
+          <label style="display:flex; align-items:center; gap:6px; font-size:14px; color:#cbd5e1;">Paths:</label>
+          <div id="cutoffPathChecks" style="display:flex; gap:8px; flex-wrap:wrap; font-size:14px;">
+            <label><input type="checkbox" class="cutoff-path-check" value="1" checked /> 1</label>
+            <label><input type="checkbox" class="cutoff-path-check" value="2" checked /> 2</label>
+            <label><input type="checkbox" class="cutoff-path-check" value="3" checked /> 3</label>
+            <label><input type="checkbox" class="cutoff-path-check" value="4" checked /> 4</label>
+            <label><input type="checkbox" class="cutoff-path-check" value="5" checked /> 5</label>
+            <label><input type="checkbox" class="cutoff-path-check" value="6" checked /> 6</label>
+            <label><input type="checkbox" class="cutoff-path-check" value="7" checked /> 7</label>
+            <label><input type="checkbox" class="cutoff-path-check" value="8" checked /> 8</label>
+          </div>
+        </div>
         <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 240px; gap:12px; align-items:start;">
           <pre id="caseDetails" style="white-space:pre-wrap; background:#0b1225; border:1px solid rgba(148,163,184,0.35); border-radius:10px; padding:10px; color:#cbd5e1; font-size:13px; line-height:1.45;">Monitoring case details will appear here.</pre>
           <div id="caseNumberBadge" style="background:#2b1130; border:2px solid #e879f9; border-radius:10px; padding:12px; color:#f5d0fe; font-size:15px; line-height:1.5;">
@@ -185,6 +185,10 @@
       </div>
 
       <div class="card">
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+          <button id="measureBtn" type="button" disabled>Measure distance</button>
+          <button id="clearMeasureBtn" type="button" disabled>Clear measure</button>
+        </div>
         <svg id="canvas" class="viz" viewBox="0 0 900 600" role="img" aria-label="Field visualisation"></svg>
         <div id="legendPanel" style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; font-size:13px;"></div>
       </div>
