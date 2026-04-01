@@ -616,14 +616,23 @@
         return g;
       }
 
-      function renderField(selectedFields) {
+      function renderField(selectedFields, options = {}) {
+        const preserveView = options.preserveView === true;
         const viewW = 900;
         const viewH = 600;
         const margin = 40;
         svg.innerHTML = '';
         legendPanel.innerHTML = '';
-        zoomLevel = 1;
-        currentViewBox = { x: 0, y: 0, width: viewW, height: viewH };
+        if (!preserveView) {
+          zoomLevel = 1;
+          currentViewBox = { x: 0, y: 0, width: viewW, height: viewH };
+        } else {
+          const width = viewW / Math.max(1, zoomLevel);
+          const height = viewH / Math.max(1, zoomLevel);
+          const x = Math.max(0, Math.min(viewW - width, currentViewBox.x));
+          const y = Math.max(0, Math.min(viewH - height, currentViewBox.y));
+          currentViewBox = { x, y, width, height };
+        }
         svg.setAttribute('viewBox', `${currentViewBox.x} ${currentViewBox.y} ${currentViewBox.width} ${currentViewBox.height}`);
 
         const allPoints = selectedFields.flatMap((f) => f.points).concat([
@@ -1142,7 +1151,7 @@
         if (!world) return;
         const source = worldToSource(draggingPointRef.field.lidarId, world);
         applyPointUpdate(draggingPointRef, source.x, source.y);
-        renderField(lastRenderedFields);
+        renderField(lastRenderedFields, { preserveView: true });
         selectEditablePoint(draggingPointRef);
       });
 
@@ -1307,7 +1316,7 @@
           editHistory = [];
           updateUndoButton();
         }
-        renderField(lastRenderedFields);
+        renderField(lastRenderedFields, { preserveView: true });
       });
 
       applyPointBtn.addEventListener('click', () => {
@@ -1332,7 +1341,7 @@
             newSource
           });
         }
-        renderField(lastRenderedFields);
+        renderField(lastRenderedFields, { preserveView: true });
         selectEditablePoint(selectedPointRef);
         setStatus('Point updated from manual coordinates. Export XML to save.');
       });
@@ -1344,7 +1353,7 @@
           return;
         }
         applyPointUpdate({ field: lastEdit.field, pointIdx: lastEdit.pointIdx }, lastEdit.prevSource.x, lastEdit.prevSource.y);
-        renderField(lastRenderedFields);
+        renderField(lastRenderedFields, { preserveView: true });
         selectEditablePoint({ field: lastEdit.field, pointIdx: lastEdit.pointIdx });
         updateUndoButton();
         setStatus('Last edit undone.');
