@@ -385,9 +385,9 @@
       let panStart = null;
       let caseFrameMinimized = false;
 
-      function setRenderedCaseBanner(caseNumber = null) {
+      function setRenderedCaseBanner(caseNumber = null, caseName = '') {
         renderedCaseBanner.textContent = caseNumber
-          ? `Rendered monitoring case: ${caseNumber}`
+          ? `Rendered monitoring case: ${caseNumber}${caseName ? ` (${caseName})` : ''}`
           : 'Rendered monitoring case: -';
       }
 
@@ -520,7 +520,8 @@
         const caseNumInt = Number(parsedKey.caseNumber);
         const caseNumberBinary = Number.isFinite(caseNumInt) ? caseNumInt.toString(2).padStart(8, '0') : '--------';
         caseNumberBadge.innerHTML = `Monitoring case: ${parsedKey.caseNumber}<br/>Binary: ${caseNumberBinary}`;
-        setRenderedCaseBanner(parsedKey.caseNumber);
+        const caseName = caseEntries[0]?.caseLabel || '';
+        setRenderedCaseBanner(parsedKey.caseNumber, caseName);
 
         const selectedFields = caseEntries.flatMap((caseEntry) => {
           detailLines.push(`Lidar: ${caseEntry.lidarLabel} | Name: ${caseEntry.caseLabel}`);
