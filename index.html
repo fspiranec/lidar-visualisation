@@ -195,6 +195,10 @@
           </select>
         </div>
         <div style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <button id="prevCaseBtn" type="button" disabled>Previous case</button>
+          <button id="nextCaseBtn" type="button" disabled>Next case</button>
+          <input id="manualCaseInput" type="number" min="0" step="1" placeholder="Case #" style="width:120px; border:1px solid rgba(148, 163, 184, 0.35); background:var(--panel-light); color:var(--text); padding:10px; border-radius:10px;" />
+          <button id="goToCaseBtn" type="button" disabled>Go to case</button>
           <button id="renderCaseBtn" type="button" disabled>Render monitoring case</button>
           <label style="display:flex; align-items:center; gap:6px; font-size:14px; color:#cbd5e1;">
             <input id="toggleCoords" type="checkbox" checked />
@@ -309,6 +313,10 @@
       const fieldSelect2 = document.getElementById('fieldSelect2');
       const renderBtn = document.getElementById('renderBtn');
       const renderCaseBtn = document.getElementById('renderCaseBtn');
+      const prevCaseBtn = document.getElementById('prevCaseBtn');
+      const nextCaseBtn = document.getElementById('nextCaseBtn');
+      const manualCaseInput = document.getElementById('manualCaseInput');
+      const goToCaseBtn = document.getElementById('goToCaseBtn');
       const monitoringCaseSelect = document.getElementById('monitoringCaseSelect');
       const cutoffPathChecks = [...document.querySelectorAll('.cutoff-path-check')];
       const caseDetails = document.getElementById('caseDetails');
@@ -430,6 +438,9 @@
         if (merged.length === 0) {
           monitoringCaseSelect.disabled = true;
           renderCaseBtn.disabled = true;
+          prevCaseBtn.disabled = true;
+          nextCaseBtn.disabled = true;
+          goToCaseBtn.disabled = true;
           monitoringCaseSelect.append(new Option('Load monitoring cases first…', ''));
           return;
         }
@@ -452,6 +463,94 @@
           });
         monitoringCaseSelect.disabled = false;
         renderCaseBtn.disabled = false;
+        prevCaseBtn.disabled = false;
+        nextCaseBtn.disabled = false;
+        goToCaseBtn.disabled = false;
+      }
+
+      function renderSelectedMonitoringCase() {
+        const selectedKey = monitoringCaseSelect.value;
+        if (!selectedKey) {
+          setStatus('Select a monitoring case first.', true);
+          return;
+        }
+        const allCases = [...monitoringCases1, ...monitoringCases2];
+        let parsedKey;
+        try {
+          parsedKey = JSON.parse(selectedKey);
+        } catch {
+          setStatus('Selected monitoring case key is invalid.', true);
+          return;
+        }
+        const caseEntries = allCases.filter((c) => String(c.caseNumber) === String(parsedKey.caseNumber));
+        if (caseEntries.length === 0) {
+          setStatus('Selected monitoring case was not found.', true);
+          return;
+        }
+
+        const pathToCell = (path) => {
+          if (!path || path.userFieldIds.length === 0) return 'not found';
+          return path.resolvedEntries
+            .map((entry) => `${entry.id} = ${entry.resolvedName || 'not found'}`)
+            .join('; ');
+        };
+        const selectedPathNums = cutoffPathChecks
+          .filter((cb) => cb.checked)
+          .map((cb) => Number(cb.value))
+          .filter((n) => Number.isFinite(n));
+        if (selectedPathNums.length === 0) {
+          setStatus('Select at least one cut-off path checkbox.', true);
+          return;
+        }
+        const detailLines = [];
+        const caseNumInt = Number(parsedKey.caseNumber);
+        const caseNumberBinary = Number.isFinite(caseNumInt) ? caseNumInt.toString(2).padStart(8, '0') : '--------';
+        caseNumberBadge.innerHTML = `Monitoring case: ${parsedKey.caseNumber}<br/>Binary: ${caseNumberBinary}`;
+
+        const selectedFields = caseEntries.flatMap((caseEntry) => {
+          detailLines.push(`Lidar: ${caseEntry.lidarLabel} | Name: ${caseEntry.caseLabel}`);
+          detailLines.push(`CaseNumber: ${caseEntry.caseNumber} | CaseId: ${caseEntry.caseObjectId} | DisplayOrder: ${caseEntry.displayOrder}`);
+          const paths = caseEntry.cutOffPaths;
+          for (let q = 1; q <= 8; q += 1) {
+            const path = paths.find((p) => p.qIndex === q) || paths.find((p) => new RegExp(`cut-?off path\\s*${q}`, 'i').test(p.name)) || null;
+            detailLines.push(`Cut-off path ${q}: ${pathToCell(path)}`);
+          }
+          detailLines.push('---');
+
+          const filteredPaths = caseEntry.cutOffPaths.filter((path, idx) => {
+            const byQ = path.qIndex && selectedPathNums.includes(path.qIndex);
+            const byName = selectedPathNums.some((n) => new RegExp(`cut-?off path\\s*${n}`, 'i').test(path.name));
+            const byIndex = selectedPathNums.includes(idx + 1);
+            return byQ || byName || byIndex;
+          });
+
+          return filteredPaths.flatMap((path, pathIndex) =>
+            path.fields.map((field, fieldIndex) => ({
+              ...field,
+              label: `${caseEntry.lidarLabel} - ${path.name} - F${pathIndex + 1}.${fieldIndex + 1}`,
+              dedupeKey: `${caseEntry.lidarLabel}::${path.name}::${field.id}`
+            }))
+          );
+        });
+        const uniqueSelectedFields = [...new Map(selectedFields.map((f) => [f.dedupeKey, f])).values()];
+        caseDetails.textContent = detailLines.join('\n');
+
+        if (uniqueSelectedFields.length === 0) {
+          setStatus('No matching fields found under selected monitoring case for imported lidar fields.', true);
+          return;
+        }
+        lastRenderedFields = uniqueSelectedFields;
+        editPanel.style.display = editMode ? 'flex' : 'none';
+        renderField(uniqueSelectedFields);
+      }
+
+      function shiftMonitoringCase(step) {
+        if (monitoringCaseSelect.options.length === 0 || monitoringCaseSelect.disabled) return;
+        const currentIndex = Math.max(0, monitoringCaseSelect.selectedIndex);
+        const optionCount = monitoringCaseSelect.options.length;
+        const nextIndex = (currentIndex + step + optionCount) % optionCount;
+        monitoringCaseSelect.selectedIndex = nextIndex;
+        renderSelectedMonitoringCase();
       }
 
       function parseMonitoringCases(xmlText, lidarLabel) {
@@ -1229,79 +1328,43 @@
       });
 
       renderCaseBtn.addEventListener('click', () => {
-        const selectedKey = monitoringCaseSelect.value;
-        if (!selectedKey) {
-          setStatus('Select a monitoring case first.', true);
-          return;
-        }
-        const allCases = [...monitoringCases1, ...monitoringCases2];
-        let parsedKey;
-        try {
-          parsedKey = JSON.parse(selectedKey);
-        } catch {
-          setStatus('Selected monitoring case key is invalid.', true);
-          return;
-        }
-        const caseEntries = allCases.filter((c) => String(c.caseNumber) === String(parsedKey.caseNumber));
-        if (caseEntries.length === 0) {
-          setStatus('Selected monitoring case was not found.', true);
-          return;
-        }
+        renderSelectedMonitoringCase();
+      });
 
-        const pathToCell = (path) => {
-          if (!path || path.userFieldIds.length === 0) return 'not found';
-          return path.resolvedEntries
-            .map((entry) => `${entry.id} = ${entry.resolvedName || 'not found'}`)
-            .join('; ');
-        };
-        const selectedPathNums = cutoffPathChecks
-          .filter((cb) => cb.checked)
-          .map((cb) => Number(cb.value))
-          .filter((n) => Number.isFinite(n));
-        if (selectedPathNums.length === 0) {
-          setStatus('Select at least one cut-off path checkbox.', true);
+      monitoringCaseSelect.addEventListener('change', () => {
+        if (monitoringCaseSelect.disabled || !monitoringCaseSelect.value) return;
+        renderSelectedMonitoringCase();
+      });
+
+      prevCaseBtn.addEventListener('click', () => {
+        shiftMonitoringCase(-1);
+      });
+
+      nextCaseBtn.addEventListener('click', () => {
+        shiftMonitoringCase(1);
+      });
+
+      goToCaseBtn.addEventListener('click', () => {
+        const targetCase = String(Number(manualCaseInput.value));
+        if (!targetCase || targetCase === 'NaN') {
+          setStatus('Enter a valid monitoring case number first.', true);
           return;
         }
-        const detailLines = [];
-        const caseNumInt = Number(parsedKey.caseNumber);
-        const caseNumberBinary = Number.isFinite(caseNumInt) ? caseNumInt.toString(2).padStart(8, '0') : '--------';
-        caseNumberBadge.innerHTML = `Monitoring case: ${parsedKey.caseNumber}<br/>Binary: ${caseNumberBinary}`;
-
-        const selectedFields = caseEntries.flatMap((caseEntry) => {
-          detailLines.push(`Lidar: ${caseEntry.lidarLabel} | Name: ${caseEntry.caseLabel}`);
-          detailLines.push(`CaseNumber: ${caseEntry.caseNumber} | CaseId: ${caseEntry.caseObjectId} | DisplayOrder: ${caseEntry.displayOrder}`);
-          const paths = caseEntry.cutOffPaths;
-          for (let q = 1; q <= 8; q += 1) {
-            const path = paths.find((p) => p.qIndex === q) || paths.find((p) => new RegExp(`cut-?off path\\s*${q}`, 'i').test(p.name)) || null;
-            detailLines.push(`Cut-off path ${q}: ${pathToCell(path)}`);
-          }
-          detailLines.push('---');
-
-          const filteredPaths = caseEntry.cutOffPaths.filter((path, idx) => {
-            const byQ = path.qIndex && selectedPathNums.includes(path.qIndex);
-            const byName = selectedPathNums.some((n) => new RegExp(`cut-?off path\\s*${n}`, 'i').test(path.name));
-            const byIndex = selectedPathNums.includes(idx + 1);
-            return byQ || byName || byIndex;
+        const optionIndex = [...monitoringCaseSelect.options]
+          .findIndex((option) => {
+            try {
+              const parsed = JSON.parse(option.value);
+              return String(parsed.caseNumber) === targetCase;
+            } catch {
+              return false;
+            }
           });
-
-          return filteredPaths.flatMap((path, pathIndex) =>
-            path.fields.map((field, fieldIndex) => ({
-              ...field,
-              label: `${caseEntry.lidarLabel} - ${path.name} - F${pathIndex + 1}.${fieldIndex + 1}`,
-              dedupeKey: `${caseEntry.lidarLabel}::${path.name}::${field.id}`
-            }))
-          );
-        });
-        const uniqueSelectedFields = [...new Map(selectedFields.map((f) => [f.dedupeKey, f])).values()];
-        caseDetails.textContent = detailLines.join('\n');
-
-        if (uniqueSelectedFields.length === 0) {
-          setStatus('No matching fields found under selected monitoring case for imported lidar fields.', true);
+        if (optionIndex < 0) {
+          setStatus(`Monitoring case ${targetCase} not found in loaded case list.`, true);
           return;
         }
-        lastRenderedFields = uniqueSelectedFields;
-        editPanel.style.display = editMode ? 'flex' : 'none';
-        renderField(uniqueSelectedFields);
+        monitoringCaseSelect.selectedIndex = optionIndex;
+        renderSelectedMonitoringCase();
       });
 
       editModeBtn.addEventListener('click', () => {
