@@ -6,7 +6,7 @@
     <title>Lidar Safety Field Visualiser</title>
     <style>
       :root {
-        color-scheme: light dark;
+        color-scheme: dark;
         --bg: #0f172a;
         --panel: #111827;
         --panel-light: #1f2937;
@@ -42,6 +42,10 @@
       }
       .top-nav a:hover {
         background: rgba(34, 211, 238, 0.2);
+      }
+      .top-nav a[aria-current="page"] {
+        background: rgba(34, 211, 238, 0.24);
+        border-color: rgba(103, 232, 249, 0.75);
       }
       h1 { margin-top: 0; }
       .card {
@@ -81,6 +85,10 @@
         cursor: pointer;
       }
       .hint { color: var(--muted); font-size: 14px; }
+      .button-muted {
+        background: #374151;
+        color: #e5e7eb;
+      }
       .viz {
         width: 100%;
         min-height: 560px;
@@ -108,6 +116,35 @@
         padding: 8px;
         border-radius: 8px;
       }
+      .input-shell {
+        width: 100%;
+        resize: vertical;
+        border-radius: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: #1f2937;
+        color: #e5e7eb;
+        padding: 10px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      .dialog-shell {
+        max-width: 900px;
+        width: min(900px, 95vw);
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: #0b1225;
+        color: #e5e7eb;
+      }
+      .dialog-form {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px;
+      }
+      .dialog-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+      }
       @media (max-width: 760px) {
         .row { grid-template-columns: 1fr; }
         .viz { min-height: 420px; }
@@ -117,8 +154,7 @@
   <body>
     <div class="wrap">
       <nav class="top-nav" aria-label="Main navigation">
-        <a href="index.html">Home</a>
-        <a href="skills.html">Skills</a>
+        <a href="index.html" aria-current="page">Home</a>
         <a href="help.html">Help</a>
         <a href="how-to.html">How To</a>
       </nav>
@@ -259,42 +295,42 @@
       </div>
     </div>
 
-    <dialog id="xmlDialog1" style="max-width:900px; width:min(900px,95vw); border-radius:12px; border:1px solid rgba(148,163,184,0.35); background:#0b1225; color:#e5e7eb;">
-      <form method="dialog" style="display:flex; flex-direction:column; gap:10px; padding:12px;">
+    <dialog id="xmlDialog1" class="dialog-shell">
+      <form method="dialog" class="dialog-form">
         <label for="xmlInput1">Paste Rear Left Lidar XML content</label>
-        <textarea id="xmlInput1" rows="14" style="width:100%; resize:vertical; border-radius:10px; border:1px solid rgba(148, 163, 184, 0.35); background:#1f2937; color:#e5e7eb; padding:10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;"></textarea>
-        <div style="display:flex; gap:10px; justify-content:flex-end;">
-          <button value="cancel" style="background:#374151; color:#e5e7eb;" type="submit">Close</button>
+        <textarea id="xmlInput1" rows="14" class="input-shell"></textarea>
+        <div class="dialog-actions">
+          <button value="cancel" class="button-muted" type="submit">Close</button>
           <button id="parsePastedXmlBtn1" value="default" type="button">Parse XML</button>
         </div>
       </form>
     </dialog>
-    <dialog id="casesDialog1" style="max-width:900px; width:min(900px,95vw); border-radius:12px; border:1px solid rgba(148,163,184,0.35); background:#0b1225; color:#e5e7eb;">
-      <form method="dialog" style="display:flex; flex-direction:column; gap:10px; padding:12px;">
+    <dialog id="casesDialog1" class="dialog-shell">
+      <form method="dialog" class="dialog-form">
         <label for="casesInput1">Paste Rear Left monitoring cases XML</label>
-        <textarea id="casesInput1" rows="14" style="width:100%; resize:vertical; border-radius:10px; border:1px solid rgba(148, 163, 184, 0.35); background:#1f2937; color:#e5e7eb; padding:10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;"></textarea>
-        <div style="display:flex; gap:10px; justify-content:flex-end;">
-          <button value="cancel" style="background:#374151; color:#e5e7eb;" type="submit">Close</button>
+        <textarea id="casesInput1" rows="14" class="input-shell"></textarea>
+        <div class="dialog-actions">
+          <button value="cancel" class="button-muted" type="submit">Close</button>
           <button id="parseCasesBtn1" value="default" type="button">Parse cases XML</button>
         </div>
       </form>
     </dialog>
-    <dialog id="casesDialog2" style="max-width:900px; width:min(900px,95vw); border-radius:12px; border:1px solid rgba(148,163,184,0.35); background:#0b1225; color:#e5e7eb;">
-      <form method="dialog" style="display:flex; flex-direction:column; gap:10px; padding:12px;">
+    <dialog id="casesDialog2" class="dialog-shell">
+      <form method="dialog" class="dialog-form">
         <label for="casesInput2">Paste Front Right monitoring cases XML</label>
-        <textarea id="casesInput2" rows="14" style="width:100%; resize:vertical; border-radius:10px; border:1px solid rgba(148, 163, 184, 0.35); background:#1f2937; color:#e5e7eb; padding:10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;"></textarea>
-        <div style="display:flex; gap:10px; justify-content:flex-end;">
-          <button value="cancel" style="background:#374151; color:#e5e7eb;" type="submit">Close</button>
+        <textarea id="casesInput2" rows="14" class="input-shell"></textarea>
+        <div class="dialog-actions">
+          <button value="cancel" class="button-muted" type="submit">Close</button>
           <button id="parseCasesBtn2" value="default" type="button">Parse cases XML</button>
         </div>
       </form>
     </dialog>
-    <dialog id="xmlDialog2" style="max-width:900px; width:min(900px,95vw); border-radius:12px; border:1px solid rgba(148,163,184,0.35); background:#0b1225; color:#e5e7eb;">
-      <form method="dialog" style="display:flex; flex-direction:column; gap:10px; padding:12px;">
+    <dialog id="xmlDialog2" class="dialog-shell">
+      <form method="dialog" class="dialog-form">
         <label for="xmlInput2">Paste Front Right Lidar XML content</label>
-        <textarea id="xmlInput2" rows="14" style="width:100%; resize:vertical; border-radius:10px; border:1px solid rgba(148, 163, 184, 0.35); background:#1f2937; color:#e5e7eb; padding:10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;"></textarea>
-        <div style="display:flex; gap:10px; justify-content:flex-end;">
-          <button value="cancel" style="background:#374151; color:#e5e7eb;" type="submit">Close</button>
+        <textarea id="xmlInput2" rows="14" class="input-shell"></textarea>
+        <div class="dialog-actions">
+          <button value="cancel" class="button-muted" type="submit">Close</button>
           <button id="parsePastedXmlBtn2" value="default" type="button">Parse XML</button>
         </div>
       </form>
