@@ -1,4 +1,8 @@
-# Lidar Visualisation (Safety Fields)
+## Official Release
+
+# Lidar Visualisation (Safety Fields) v1.0.0
+
+**Creator:** Franjo Spiranec / Codex
 
 Simple web app for visualising SICK safety fields from pasted XML content.
 
