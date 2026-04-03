@@ -569,6 +569,12 @@
         renderSelectedMonitoringCase();
       }
 
+      function isTypingTarget(target) {
+        if (!(target instanceof HTMLElement)) return false;
+        const tag = target.tagName;
+        return target.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+      }
+
       function parseMonitoringCases(xmlText, lidarLabel) {
         const parser = new DOMParser();
         const xml = parser.parseFromString(xmlText, 'application/xml');
@@ -1359,6 +1365,18 @@
 
       nextCaseBtn.addEventListener('click', () => {
         shiftMonitoringCase(1);
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (monitoringCaseSelect.disabled) return;
+        if (isTypingTarget(event.target)) return;
+        if (event.key === 'ArrowLeft') {
+          event.preventDefault();
+          shiftMonitoringCase(-1);
+        } else if (event.key === 'ArrowRight') {
+          event.preventDefault();
+          shiftMonitoringCase(1);
+        }
       });
 
       goToCaseBtn.addEventListener('click', () => {
