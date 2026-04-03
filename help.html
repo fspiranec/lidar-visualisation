@@ -5,40 +5,92 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Help | Lidar Safety Field Visualiser</title>
     <style>
-      body { margin: 0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: linear-gradient(180deg, #0b1022 0%, #10172f 100%); color: #e5e7eb; }
-      .wrap { max-width: 900px; margin: 0 auto; padding: 24px; }
+      :root {
+        color-scheme: dark;
+        --text: #e5e7eb;
+        --muted: #cbd5e1;
+        --panel: rgba(17, 24, 39, 0.9);
+      }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        background: linear-gradient(180deg, #0b1022 0%, #10172f 100%);
+        color: var(--text);
+      }
+      .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
       .top-nav { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
-      .top-nav a { color: #67e8f9; text-decoration: none; font-weight: 600; border: 1px solid rgba(103,232,249,0.4); background: rgba(15,23,42,0.55); border-radius: 999px; padding: 6px 12px; }
-      .card { background: rgba(17,24,39,0.9); border: 1px solid rgba(148,163,184,0.2); border-radius: 16px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+      .top-nav a {
+        color: #67e8f9;
+        text-decoration: none;
+        font-weight: 600;
+        border: 1px solid rgba(103,232,249,0.4);
+        background: rgba(15,23,42,0.55);
+        border-radius: 999px;
+        padding: 6px 12px;
+      }
+      .top-nav a[aria-current="page"] {
+        background: rgba(34, 211, 238, 0.24);
+        border-color: rgba(103, 232, 249, 0.75);
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid rgba(148,163,184,0.2);
+        border-radius: 16px;
+        padding: 18px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      }
       h1 { margin-top: 0; }
-      h2 { margin-bottom: 6px; }
-      p { margin-top: 0; color: #cbd5e1; }
+      h2 { margin-bottom: 6px; margin-top: 20px; }
+      p, li { color: var(--muted); line-height: 1.55; }
+      ul { margin-top: 6px; }
+      code { color: #a5f3fc; }
     </style>
   </head>
   <body>
     <div class="wrap">
       <nav class="top-nav" aria-label="Main navigation">
         <a href="index.html">Home</a>
-        <a href="skills.html">Skills</a>
-        <a href="help.html">Help</a>
+        <a href="help.html" aria-current="page">Help</a>
         <a href="how-to.html">How To</a>
       </nav>
       <div class="card">
         <h1>Help</h1>
-        <h2>Accepted files</h2>
-        <p>Use XML exports from SICK fieldset tools for fields and monitoring cases.</p>
 
-        <h2>Why is the render button disabled?</h2>
-        <p>The button enables only after at least one lidar XML is parsed and one field is selected.</p>
+        <h2>Supported inputs</h2>
+        <ul>
+          <li>Field XML: paste text or import <code>.xml</code>, <code>.txt</code>, <code>.sdxml</code>, <code>.sdxlm</code>.</li>
+          <li>Monitoring cases XML: paste text or import <code>.xml</code>, <code>.txt</code>, <code>.casesxml</code>, <code>.sdxlm</code>.</li>
+        </ul>
 
-        <h2>Why does nothing show after loading a case?</h2>
-        <p>Check that matching field XML was loaded first and that selected cutoff paths are enabled.</p>
+        <h2>Render button is disabled</h2>
+        <p>Load and parse at least one lidar field XML, then select one field in the corresponding dropdown.</p>
 
-        <h2>How do I compare both lidars?</h2>
-        <p>Load Rear Left and Front Right XML, select one field from each dropdown, then render together.</p>
+        <h2>Monitoring case controls are disabled</h2>
+        <p>Monitoring controls activate after at least one valid cases XML is parsed (Rear Left and/or Front Right).</p>
 
-        <h2>Need a clean view?</h2>
-        <p>Turn off coordinate labels and use the clear measure button to remove measurement lines.</p>
+        <h2>No geometry appears for a selected monitoring case</h2>
+        <ul>
+          <li>Confirm the matching field XML was loaded for the same lidar.</li>
+          <li>Check that at least one cut-off path checkbox (1-8) is selected.</li>
+          <li>Try rendering fields first to confirm the field parser works with your file export.</li>
+        </ul>
+
+        <h2>Coordinate and view tools</h2>
+        <ul>
+          <li><strong>Show coordinates:</strong> toggles point labels.</li>
+          <li><strong>Measure distance:</strong> click two points on the canvas to get distance and Δ values in mm.</li>
+          <li><strong>Zoom in/out/reset:</strong> adjusts viewport quickly after render.</li>
+          <li><strong>Clear measure:</strong> removes measurement overlays.</li>
+        </ul>
+
+        <h2>Editing and export</h2>
+        <ul>
+          <li><strong>Edit mode:</strong> select points, edit X/Y values, and apply changes with undo history.</li>
+          <li><strong>Export XML:</strong> exports Rear Left or Front Right XML with any applied point edits.</li>
+        </ul>
+
+        <h2>Navigation tips</h2>
+        <p>Use <strong>Previous case</strong>, <strong>Next case</strong>, or enter a number in <strong>Case #</strong> and click <strong>Go to case</strong>.</p>
       </div>
     </div>
   </body>
