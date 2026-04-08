@@ -154,65 +154,64 @@
 
       <div class="tabs" role="tablist" aria-label="Workspace sections">
         <button class="tab-btn" type="button" role="tab" aria-selected="true" aria-controls="tab-import" id="tabBtnImport">1. Import</button>
-        <button class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="tab-cases" id="tabBtnCases">2. Monitoring Cases</button>
-        <button class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="tab-visual" id="tabBtnVisual">3. Visualisation</button>
+        <button class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="tab-visual" id="tabBtnVisual">2. Visualisation</button>
       </div>
 
       <section class="card tab-panel" id="tab-import" role="tabpanel" aria-labelledby="tabBtnImport">
+        <h3 style="margin-top:0;">Import files</h3>
         <div class="row">
           <div>
-            <label for="importXmlBtn1">Rear Left Lidar field file (.sdxml)</label>
+            <label for="importXmlBtn1">Rear Left field (.sdxml)</label>
             <button id="importXmlBtn1" type="button">Import Rear Left .sdxml</button>
             <input id="importXmlInput1" type="file" accept=".sdxml" style="display:none;" />
           </div>
           <div>
-            <label for="fieldSelect1">Rear Left Lidar field from list</label>
-            <select id="fieldSelect1" disabled>
-              <option value="">Paste Rear Left Lidar XML first…</option>
-            </select>
+            <label for="importCasesBtn1">Rear Left monitoring (.casesxml)</label>
+            <button id="importCasesBtn1" type="button">Import Rear Left .casesxml</button>
+            <input id="importCasesInput1" type="file" accept=".casesxml" style="display:none;" />
           </div>
         </div>
         <div class="row" style="margin-top:12px;">
           <div>
-            <label for="importXmlBtn2">Front Right Lidar field file (.sdxml)</label>
+            <label for="importXmlBtn2">Front Right field (.sdxml)</label>
             <button id="importXmlBtn2" type="button">Import Front Right .sdxml</button>
             <input id="importXmlInput2" type="file" accept=".sdxml" style="display:none;" />
           </div>
           <div>
-            <label for="fieldSelect2">Front Right Lidar field from list (rotate 180° + offset by -1180, -1650)</label>
-            <select id="fieldSelect2" disabled>
-              <option value="">Paste Front Right Lidar XML first…</option>
-            </select>
-          </div>
-        </div>
-        <div id="actionRow" style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-          <button id="renderBtn" disabled>Render selected field(s)</button>
-        </div>
-        <div class="hint" style="margin-top:8px;">Coordinates are shown in mm (auto-scaled to screen).</div>
-        <div class="msg" id="status"></div>
-      </section>
-
-      <section class="card tab-panel" id="tab-cases" role="tabpanel" aria-labelledby="tabBtnCases" hidden>
-        <h3 style="margin-top:0;">Monitoring cases</h3>
-        <div class="row">
-          <div>
-            <label for="importCasesBtn1">Rear Left monitoring cases (.casesxml)</label>
-            <button id="importCasesBtn1" type="button">Import Rear Left .casesxml</button>
-            <input id="importCasesInput1" type="file" accept=".casesxml" style="display:none;" />
-          </div>
-          <div>
-            <label for="importCasesBtn2">Front Right monitoring cases (.casesxml)</label>
+            <label for="importCasesBtn2">Front Right monitoring (.casesxml)</label>
             <button id="importCasesBtn2" type="button">Import Front Right .casesxml</button>
             <input id="importCasesInput2" type="file" accept=".casesxml" style="display:none;" />
           </div>
         </div>
-        <div style="margin-top:12px;">
+        <div class="hint" style="margin-top:10px;">After importing, switch to the Visualisation tab for all selections and rendering.</div>
+        <div class="msg" id="status"></div>
+      </section>
+
+      <section class="card tab-panel" id="tab-visual" role="tabpanel" aria-labelledby="tabBtnVisual" hidden>
+        <div class="row" style="margin-bottom:12px;">
+          <div>
+            <label for="fieldSelect1">Rear Left Lidar field from list</label>
+            <select id="fieldSelect1" disabled>
+              <option value="">Import Rear Left Lidar .sdxml first…</option>
+            </select>
+          </div>
+          <div>
+            <label for="fieldSelect2">Front Right Lidar field from list (rotate 180° + offset by -1180, -1650)</label>
+            <select id="fieldSelect2" disabled>
+              <option value="">Import Front Right Lidar .sdxml first…</option>
+            </select>
+          </div>
+        </div>
+        <div id="actionRow" style="margin-bottom:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <button id="renderBtn" disabled>Render selected field(s)</button>
+        </div>
+        <div style="margin-bottom:12px;">
           <label for="monitoringCaseSelect">Monitoring case list (from both lidars)</label>
           <select id="monitoringCaseSelect" disabled>
             <option value="">Load monitoring cases first…</option>
           </select>
         </div>
-        <div style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <div style="margin-bottom:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
           <button id="renderCaseBtn" type="button" disabled>Render monitoring case</button>
           <button id="toggleCaseFrameBtn" type="button">Minimize case details</button>
           <label style="display:flex; align-items:center; gap:6px; font-size:14px; color:#cbd5e1;">
@@ -231,7 +230,7 @@
             <label><input type="checkbox" class="cutoff-path-check" value="8" checked /> 8</label>
           </div>
         </div>
-        <div id="caseInfoFrame" style="margin-top:12px; display:grid; grid-template-columns: 1fr 240px; gap:12px; align-items:start;">
+        <div id="caseInfoFrame" style="margin-bottom:12px; display:grid; grid-template-columns: 1fr 240px; gap:12px; align-items:start;">
           <pre id="caseDetails" style="white-space:pre-wrap; background:#0b1225; border:1px solid rgba(148,163,184,0.35); border-radius:10px; padding:10px; color:#cbd5e1; font-size:13px; line-height:1.45;">Monitoring case details will appear here.</pre>
           <div id="caseNumberBadge" style="background:#2b1130; border:2px solid #e879f9; border-radius:10px; padding:12px; color:#f5d0fe; font-size:15px; line-height:1.5;">
             Monitoring case: -
@@ -239,9 +238,6 @@
             Binary: --------
           </div>
         </div>
-      </section>
-
-      <section class="card tab-panel" id="tab-visual" role="tabpanel" aria-labelledby="tabBtnVisual" hidden>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
           <button id="measureBtn" type="button" disabled>Measure distance</button>
           <button id="clearMeasureBtn" type="button" disabled>Clear measure</button>

@@ -18,7 +18,7 @@ Simple web app for visualising SICK safety fields from imported XML files.
 - Include a measurement tool: click **Measure distance**, then click any two canvas points to get total distance plus absolute `Δx` and `Δy` in mm.
 - XML imports are parsed client-side only (no file storage/upload backend).
 - Import monitoring cases XML for both lidars (`.casesxml`), choose a monitoring case once, and render matched fields from both lidar datasets for that same case number/name.
-- UI is split into tabs (**Import**, **Monitoring Cases**, **Visualisation**) to keep workflows cleaner.
+- UI is split into tabs (**Import**, **Visualisation**): import all files in one place, then do all selections/rendering in Visualisation.
 - Monitoring-case parsing prioritizes **case ID / number** nodes and searches under each case for field names that match the imported field list.
 - Uses SICK `.casesxml` mapping flow: reads `/SdImportExport/Cases/Case` (`Name`, `DisplayOrder`, `Activation/CaseNumber`) and matches eval paths via `/SdImportExport/Evals/Eval/Cases/Case[@Id=DisplayOrder]`, then reads `ScanPlanes/ScanPlane/UserFieldId`.
 - Monitoring case detail panel outputs a markdown table row with `CaseNumber`, `Name`, `DisplayOrder`, and 4 cut-off path cells in the format `UserFieldId = resolved field name` (or `not found`).
