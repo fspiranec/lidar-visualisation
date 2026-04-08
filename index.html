@@ -159,6 +159,14 @@
 
       <section class="card tab-panel" id="tab-import" role="tabpanel" aria-labelledby="tabBtnImport">
         <h3 style="margin-top:0;">Import files</h3>
+        <div style="margin-bottom:12px;">
+          <label for="vehicleVersionSelect">Vehicle version</label>
+          <select id="vehicleVersionSelect">
+            <option value="md_v3" selected>MD v3</option>
+            <option value="md_v2">MD v2</option>
+            <option value="hd_v1">HD v1</option>
+          </select>
+        </div>
         <div class="row" style="margin-bottom:6px;">
           <div style="font-size:20px; font-weight:700; color:#f1f5f9;">Safety fields</div>
           <div style="font-size:20px; font-weight:700; color:#f1f5f9;">Monitoring cases</div>
@@ -200,7 +208,7 @@
             </select>
           </div>
           <div>
-            <label for="fieldSelect2">Front Right Lidar field from list (rotate 180° + offset by -1180, -1650)</label>
+            <label id="fieldSelect2Label" for="fieldSelect2">Front Right Lidar field from list (rotate 180° + location 1165, 1650)</label>
             <select id="fieldSelect2" disabled>
               <option value="">Import Front Right Lidar .sdxml first…</option>
             </select>
@@ -317,14 +325,22 @@
       const importCasesInput1 = document.getElementById('importCasesInput1');
       const importCasesBtn2 = document.getElementById('importCasesBtn2');
       const importCasesInput2 = document.getElementById('importCasesInput2');
+      const vehicleVersionSelect = document.getElementById('vehicleVersionSelect');
+      const fieldSelect2Label = document.getElementById('fieldSelect2Label');
       const statusEl = document.getElementById('status');
       const svg = document.getElementById('canvas');
       const legendPanel = document.getElementById('legendPanel');
       const renderedCaseBanner = document.getElementById('renderedCaseBanner');
 
       const lidar1Location = { x: 0, y: 0, label: 'rear left lidar' };
-      const lidar2Offset = { x: -1180, y: -1650 };
+      const lidar2Offset = { x: 1165, y: 1650 };
       const lidar2Location = { x: lidar2Offset.x, y: lidar2Offset.y, label: 'front right lidar' };
+      const VERSION_CONFIGS = {
+        md_v3: { label: 'MD v3', frontRight: { x: 1165, y: 1650 }, hasTwoLidars: true },
+        md_v2: { label: 'MD v2', frontRight: { x: 1165, y: 1650 }, hasTwoLidars: true },
+        hd_v1: { label: 'HD v1', frontRight: null, hasTwoLidars: false }
+      };
+      let currentVehicleVersion = 'md_v3';
       let fieldData1 = [];
       let fieldData2 = [];
       let currentTransform = null;
@@ -403,6 +419,28 @@
         }
 
         return extracted;
+      }
+
+      function isHdV1Selected() {
+        return currentVehicleVersion === 'hd_v1';
+      }
+
+      function applyVehicleVersion(versionKey) {
+        const config = VERSION_CONFIGS[versionKey] || VERSION_CONFIGS.md_v3;
+        currentVehicleVersion = versionKey in VERSION_CONFIGS ? versionKey : 'md_v3';
+
+        if (!config.hasTwoLidars) {
+          fieldSelect2Label.textContent = 'Front Right Lidar field from list (HD v1: work in progress)';
+          setStatus('HD v1 support is work in progress.');
+          return;
+        }
+
+        lidar2Offset.x = config.frontRight.x;
+        lidar2Offset.y = config.frontRight.y;
+        lidar2Location.x = config.frontRight.x;
+        lidar2Location.y = config.frontRight.y;
+        fieldSelect2Label.textContent = `Front Right Lidar field from list (rotate 180° + location ${config.frontRight.x}, ${config.frontRight.y})`;
+        setStatus(`${config.label} selected. Rear Left + Front Right lidar layout enabled.`);
       }
 
       function refreshRenderButtonState() {
@@ -758,6 +796,17 @@
 
         svg.append(renderAxes(viewW, viewH, margin));
 
+        const centralLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        centralLine.setAttribute('x1', String(centeredX(-620)));
+        centralLine.setAttribute('y1', String(centeredY(minY)));
+        centralLine.setAttribute('x2', String(centeredX(-620)));
+        centralLine.setAttribute('y2', String(centeredY(maxY)));
+        centralLine.setAttribute('stroke', '#ef4444');
+        centralLine.setAttribute('stroke-width', '2');
+        centralLine.setAttribute('stroke-dasharray', '8 8');
+        centralLine.setAttribute('vector-effect', 'non-scaling-stroke');
+        svg.append(centralLine);
+
         const palette = [
           { fill: 'rgba(34, 211, 238, 0.25)', stroke: '#22d3ee', point: '#f8fafc' },
           { fill: 'rgba(250, 204, 21, 0.25)', stroke: '#facc15', point: '#fef9c3' },
@@ -1050,6 +1099,11 @@
       });
 
       importXmlInput1.addEventListener('change', async (event) => {
+        if (isHdV1Selected()) {
+          setStatus('HD v1 is work in progress.', true);
+          importXmlInput1.value = '';
+          return;
+        }
         const file = event.target.files?.[0];
         if (!file) return;
         try {
@@ -1064,6 +1118,11 @@
       });
 
       importXmlInput2.addEventListener('change', async (event) => {
+        if (isHdV1Selected()) {
+          setStatus('HD v1 is work in progress.', true);
+          importXmlInput2.value = '';
+          return;
+        }
         const file = event.target.files?.[0];
         if (!file) return;
         try {
@@ -1078,6 +1137,11 @@
       });
 
       importCasesInput1.addEventListener('change', async (event) => {
+        if (isHdV1Selected()) {
+          setStatus('HD v1 is work in progress.', true);
+          importCasesInput1.value = '';
+          return;
+        }
         const file = event.target.files?.[0];
         if (!file) return;
         try {
@@ -1093,6 +1157,11 @@
       });
 
       importCasesInput2.addEventListener('change', async (event) => {
+        if (isHdV1Selected()) {
+          setStatus('HD v1 is work in progress.', true);
+          importCasesInput2.value = '';
+          return;
+        }
         const file = event.target.files?.[0];
         if (!file) return;
         try {
@@ -1245,6 +1314,10 @@
       }, { passive: false });
 
       renderBtn.addEventListener('click', () => {
+        if (isHdV1Selected()) {
+          setStatus('HD v1 is work in progress.', true);
+          return;
+        }
         const idx1 = Number(fieldSelect1.value);
         const idx2 = Number(fieldSelect2.value);
 
@@ -1271,7 +1344,15 @@
       });
 
       renderCaseBtn.addEventListener('click', () => {
+        if (isHdV1Selected()) {
+          setStatus('HD v1 is work in progress.', true);
+          return;
+        }
         renderSelectedMonitoringCase();
+      });
+
+      vehicleVersionSelect.addEventListener('change', () => {
+        applyVehicleVersion(vehicleVersionSelect.value);
       });
 
       monitoringCaseSelect.addEventListener('change', () => {
@@ -1385,6 +1466,7 @@
 
       exportXmlBtn1.addEventListener('click', () => downloadXmlDoc(xmlDoc1, xmlFileName1));
       exportXmlBtn2.addEventListener('click', () => downloadXmlDoc(xmlDoc2, xmlFileName2));
+      applyVehicleVersion(vehicleVersionSelect.value);
     </script>
   </body>
 </html>
