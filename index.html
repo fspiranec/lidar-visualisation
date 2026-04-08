@@ -397,6 +397,7 @@
       let caseFrameMinimized = false;
       let selectedLoadType = '';
       let showLoad = false;
+      let renderedFromCase = false;
 
       function refreshLoadSelectOptions() {
         loadTypeSelect.innerHTML = '';
@@ -630,6 +631,7 @@
           return;
         }
         lastRenderedFields = uniqueSelectedFields;
+        renderedFromCase = true;
         editPanel.style.display = editMode ? 'flex' : 'none';
         renderField(uniqueSelectedFields);
       }
@@ -1350,7 +1352,22 @@
       });
 
       toggleCoords.addEventListener('change', () => {
-        setStatus(`Coordinate labels ${toggleCoords.checked ? 'enabled' : 'hidden'}. Click Render to refresh view.`);
+        if (lastRenderedFields.length > 0) {
+          if (renderedFromCase) renderSelectedMonitoringCase();
+          else renderField(lastRenderedFields, { preserveView: true });
+          return;
+        }
+        setStatus(`Coordinate labels ${toggleCoords.checked ? 'enabled' : 'hidden'}.`);
+      });
+
+      cutoffPathChecks.forEach((cb) => {
+        cb.addEventListener('change', () => {
+          if (monitoringCaseSelect.disabled || !monitoringCaseSelect.value) {
+            setStatus('Load and render a monitoring case first to filter cut-off paths.', true);
+            return;
+          }
+          renderSelectedMonitoringCase();
+        });
       });
 
       loadTypeSelect.addEventListener('change', () => {
