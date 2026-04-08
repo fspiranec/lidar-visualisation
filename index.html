@@ -208,7 +208,7 @@
             </select>
           </div>
           <div>
-            <label id="fieldSelect2Label" for="fieldSelect2">Front Right Lidar field from list (rotate 180° + location -1165, -1650)</label>
+            <label id="fieldSelect2Label" for="fieldSelect2">Front Right Lidar field from list (rotate 180° + location -1165, -1661)</label>
             <select id="fieldSelect2" disabled>
               <option value="">Import Front Right Lidar .sdxml first…</option>
             </select>
@@ -222,6 +222,19 @@
           <select id="monitoringCaseSelect" disabled>
             <option value="">Load monitoring cases first…</option>
           </select>
+        </div>
+        <div style="margin-bottom:12px; display:grid; grid-template-columns: 1fr auto; gap:12px; align-items:end;">
+          <div>
+            <label for="loadTypeSelect">Load selector</label>
+            <select id="loadTypeSelect">
+              <option value="">None</option>
+              <option value="chep_48">CHEP 48inch</option>
+            </select>
+          </div>
+          <label style="display:flex; align-items:center; gap:6px; font-size:14px; color:#cbd5e1; margin:0 0 10px 0;">
+            <input id="toggleLoad" type="checkbox" />
+            Show load
+          </label>
         </div>
         <div style="margin-bottom:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
           <button id="renderCaseBtn" type="button" disabled>Render monitoring case</button>
@@ -327,16 +340,28 @@
       const importCasesInput2 = document.getElementById('importCasesInput2');
       const vehicleVersionSelect = document.getElementById('vehicleVersionSelect');
       const fieldSelect2Label = document.getElementById('fieldSelect2Label');
+      const loadTypeSelect = document.getElementById('loadTypeSelect');
+      const toggleLoad = document.getElementById('toggleLoad');
       const statusEl = document.getElementById('status');
       const svg = document.getElementById('canvas');
       const legendPanel = document.getElementById('legendPanel');
       const renderedCaseBanner = document.getElementById('renderedCaseBanner');
 
       const lidar1Location = { x: 0, y: 0, label: 'rear left lidar' };
-      const lidar2Offset = { x: -1165, y: -1650 };
+      const lidar2Offset = { x: -1165, y: -1661 };
       const lidar2Location = { x: lidar2Offset.x, y: lidar2Offset.y, label: 'front right lidar' };
+      const LOAD_CONFIGS = {
+        chep_48: {
+          name: 'CHEP 48inch',
+          width: 1220,
+          height: 1220,
+          color: '#ef4444',
+          centerX: -620,
+          centerYOffsetFromRearLeftLidar: 337
+        }
+      };
       const VERSION_CONFIGS = {
-        md_v3: { label: 'MD v3', frontRight: { x: -1165, y: -1650 }, hasTwoLidars: true },
+        md_v3: { label: 'MD v3', frontRight: { x: -1165, y: -1661 }, hasTwoLidars: true },
         md_v2: { label: 'MD v2', frontRight: { x: -1165, y: -1650 }, hasTwoLidars: true },
         hd_v1: { label: 'HD v1', frontRight: null, hasTwoLidars: false }
       };
@@ -363,6 +388,8 @@
       let isPanning = false;
       let panStart = null;
       let caseFrameMinimized = false;
+      let selectedLoadType = '';
+      let showLoad = false;
 
       function setRenderedCaseBanner(caseNumber = null, caseName = '') {
         renderedCaseBanner.textContent = caseNumber
@@ -759,7 +786,21 @@
         }
         svg.setAttribute('viewBox', `${currentViewBox.x} ${currentViewBox.y} ${currentViewBox.width} ${currentViewBox.height}`);
 
-        const allPoints = selectedFields.flatMap((f) => f.points).concat([
+        const activeLoad = showLoad ? LOAD_CONFIGS[selectedLoadType] : null;
+        const loadWorldPoints = [];
+        if (activeLoad) {
+          const loadCenterY = lidar1Location.y + activeLoad.centerYOffsetFromRearLeftLidar;
+          const halfW = activeLoad.width / 2;
+          const halfH = activeLoad.height / 2;
+          loadWorldPoints.push(
+            { x: activeLoad.centerX - halfW, y: loadCenterY - halfH },
+            { x: activeLoad.centerX + halfW, y: loadCenterY - halfH },
+            { x: activeLoad.centerX + halfW, y: loadCenterY + halfH },
+            { x: activeLoad.centerX - halfW, y: loadCenterY + halfH }
+          );
+        }
+
+        const allPoints = selectedFields.flatMap((f) => f.points).concat(loadWorldPoints, [
           { x: lidar1Location.x, y: lidar1Location.y },
           { x: lidar2Location.x, y: lidar2Location.y }
         ]);
@@ -849,6 +890,28 @@
           }
         });
 
+        if (activeLoad && loadWorldPoints.length === 4) {
+          const loadPolygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+          loadPolygon.setAttribute('points', loadWorldPoints.map((p) => `${centeredX(p.x)},${centeredY(p.y)}`).join(' '));
+          loadPolygon.setAttribute('fill', activeLoad.color);
+          loadPolygon.setAttribute('fill-opacity', '0.8');
+          loadPolygon.setAttribute('stroke', '#fca5a5');
+          loadPolygon.setAttribute('stroke-width', '2');
+          svg.append(loadPolygon);
+
+          const loadCenterY = lidar1Location.y + activeLoad.centerYOffsetFromRearLeftLidar;
+          const loadLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          loadLabel.setAttribute('x', String(centeredX(activeLoad.centerX)));
+          loadLabel.setAttribute('y', String(centeredY(loadCenterY)));
+          loadLabel.setAttribute('fill', '#ffffff');
+          loadLabel.setAttribute('font-size', '16');
+          loadLabel.setAttribute('font-weight', '700');
+          loadLabel.setAttribute('text-anchor', 'middle');
+          loadLabel.setAttribute('dominant-baseline', 'middle');
+          loadLabel.textContent = activeLoad.name;
+          svg.append(loadLabel);
+        }
+
         const lidarMarkers = [lidar1Location, lidar2Location];
         lidarMarkers.forEach((lidar) => {
           const marker = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
@@ -890,7 +953,8 @@
           legendPanel.append(pill);
         });
 
-        setStatus(`Rendered ${selectedFields.length} field(s): ${selectedFields.map((f) => f.label).join(', ')}.`);
+        const loadText = activeLoad ? ` + load ${activeLoad.name}` : '';
+        setStatus(`Rendered ${selectedFields.length} field(s): ${selectedFields.map((f) => f.label).join(', ')}${loadText}.`);
       }
 
       function svgClientToWorld(event) {
@@ -1207,6 +1271,28 @@
 
       toggleCoords.addEventListener('change', () => {
         setStatus(`Coordinate labels ${toggleCoords.checked ? 'enabled' : 'hidden'}. Click Render to refresh view.`);
+      });
+
+      loadTypeSelect.addEventListener('change', () => {
+        selectedLoadType = loadTypeSelect.value;
+        const hasSelectedLoad = Boolean(LOAD_CONFIGS[selectedLoadType]);
+        if (!hasSelectedLoad) {
+          showLoad = false;
+          toggleLoad.checked = false;
+        }
+        if (lastRenderedFields.length > 0) renderField(lastRenderedFields, { preserveView: true });
+      });
+
+      toggleLoad.addEventListener('change', () => {
+        if (!LOAD_CONFIGS[loadTypeSelect.value]) {
+          toggleLoad.checked = false;
+          showLoad = false;
+          setStatus('Select a load type first.', true);
+          return;
+        }
+        selectedLoadType = loadTypeSelect.value;
+        showLoad = toggleLoad.checked;
+        if (lastRenderedFields.length > 0) renderField(lastRenderedFields, { preserveView: true });
       });
 
       svg.addEventListener('click', (event) => {
