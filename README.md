@@ -1,5 +1,3 @@
-## Official Release
-
 # Lidar Visualisation (Safety Fields) v1.0.0
 
 **Creator:** Franjo Spiranec / Codex
