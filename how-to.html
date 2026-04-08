@@ -3,15 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="How-to guide for Lidar Safety Field Visualiser v1.0.0 official release by Franjo Spiranec / Codex." />
-    <title>How To | Lidar Safety Field Visualiser v1.0.0 (Official Release)</title>
+    <meta name="description" content="How-to guide for Lidar Safety Field Visualiser v1.0.0 by Franjo Spiranec / Codex." />
+    <title>How To | Lidar Safety Field Visualiser v1.0.0</title>
     <style>
       :root { color-scheme: dark; }
-      body { margin: 0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: linear-gradient(180deg, #0b1022 0%, #10172f 100%); color: #e5e7eb; }
+      body { margin: 0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: linear-gradient(180deg, #0b1324 0%, #111d35 100%); color: #e5e7eb; }
       .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
       .top-nav { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
-      .top-nav a { color: #67e8f9; text-decoration: none; font-weight: 600; border: 1px solid rgba(103,232,249,0.4); background: rgba(15,23,42,0.55); border-radius: 999px; padding: 6px 12px; }
-      .top-nav a[aria-current="page"] { background: rgba(34, 211, 238, 0.24); border-color: rgba(103, 232, 249, 0.75); }
+      .top-nav a { color: #bfdbfe; text-decoration: none; font-weight: 600; border: 1px solid rgba(147,197,253,0.45); background: rgba(30,41,59,0.55); border-radius: 999px; padding: 6px 12px; }
+      .top-nav a[aria-current="page"] { background: rgba(96, 165, 250, 0.24); border-color: rgba(147, 197, 253, 0.85); }
       .card { background: rgba(17,24,39,0.9); border: 1px solid rgba(148,163,184,0.2); border-radius: 16px; padding: 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
       h1 { margin-top: 0; }
       h2 { margin-top: 20px; }
@@ -26,20 +26,20 @@
         <a href="how-to.html" aria-current="page">How To</a>
       </nav>
       <div class="card">
-        <h1>How To Use This Tool — v1.0.0 Official Release</h1>
+        <h1>How To Use This Tool — v1.0.0</h1>
         <p><strong>Creator:</strong> Franjo Spiranec / Codex</p>
 
         <h2>1) Load lidar field XML files</h2>
         <ol>
-          <li>Load <strong>Rear Left</strong> XML using <em>Paste XML</em> or <em>Import XML</em>.</li>
-          <li>Optionally load <strong>Front Right</strong> XML the same way.</li>
+          <li>Open the <strong>Import</strong> tab.</li>
+          <li>Load <strong>Rear Left</strong> and optionally <strong>Front Right</strong> field files using <em>Import ... .sdxml</em>.</li>
           <li>Select one field from each lidar dropdown.</li>
           <li>Click <strong>Render selected field(s)</strong>.</li>
         </ol>
 
         <h2>2) Load monitoring cases and render by case number</h2>
         <ol>
-          <li>Paste/import monitoring cases XML for one or both lidars.</li>
+          <li>Use the <strong>Import</strong> tab to import monitoring cases for one or both lidars using <code>.casesxml</code> files.</li>
           <li>Choose a value from <strong>Monitoring case list</strong>.</li>
           <li>Select one or more cut-off path checkboxes (1-8).</li>
           <li>Click <strong>Render monitoring case</strong>.</li>
