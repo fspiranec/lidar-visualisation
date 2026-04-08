@@ -43,6 +43,22 @@ python3 -m http.server 8080
 
 Then open <http://localhost:8080>.
 
+## Run with Docker
+
+Build the image:
+
+```bash
+docker build -t lidar-visualisation .
+```
+
+Run the container:
+
+```bash
+docker run --rm -p 8080:80 lidar-visualisation
+```
+
+Then open <http://localhost:8080>.
+
 ## Deploy to Vercel
 
 1. Push this folder to a Git repository.
