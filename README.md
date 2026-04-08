@@ -1,4 +1,4 @@
-# Lidar Visualisation (Safety Fields) v1.0.0
+# Lidar Visualisation (Safety Fields) v1.1.0
 
 **Creator:** Franjo Spiranec / Codex
 
@@ -60,3 +60,9 @@ To support monitoring cases and saved uploads, we can add:
 - Supabase Storage for XML/JPG uploads.
 - Supabase Postgres tables for `monitoring_case`, `cutoff_path`, and `field_reference`.
 - A second parser for monitoring-case files and case-by-case rendering.
+
+
+## Version management
+
+- App version is stored in `version.js`.
+- Update `window.APP_VERSION` manually to change the version displayed on `index.html`.

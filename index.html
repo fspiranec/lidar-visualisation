@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Lidar Safety Field Visualiser v1.0.0 by Franjo Spiranec / Codex." />
-    <title>Lidar Safety Field Visualiser v1.0.0</title>
+    <meta name="description" content="Lidar Safety Field Visualiser by Franjo Spiranec / Codex." />
+    <title id="pageTitle">Lidar Safety Field Visualiser v1.1.0</title>
     <style>
       :root {
         color-scheme: dark;
@@ -146,7 +146,7 @@
         <a href="help.html">Help</a>
         <a href="how-to.html">How To</a>
       </nav>
-      <h1>Lidar Safety Field Visualiser v1.0.0</h1>
+      <h1 id="appTitle">Lidar Safety Field Visualiser v1.1.0</h1>
       <p class="hint"><strong>Creator:</strong> Franjo Spiranec / Codex</p>
       <p class="hint">
         Import your field XML files (<code>.sdxml</code>) and monitoring-case files (<code>.casesxml</code>), then render and inspect both lidars.
@@ -303,7 +303,14 @@
       </section>
     </div>
 
+    <script src="version.js"></script>
     <script>
+
+      const APP_VERSION = window.APP_VERSION || '1.1.0';
+      const appTitleEl = document.getElementById('appTitle');
+      const pageTitleEl = document.getElementById('pageTitle');
+      if (appTitleEl) appTitleEl.textContent = `Lidar Safety Field Visualiser v${APP_VERSION}`;
+      if (pageTitleEl) pageTitleEl.textContent = `Lidar Safety Field Visualiser v${APP_VERSION}`;
       const tabButtons = [...document.querySelectorAll('.tab-btn')];
       const tabPanels = [...document.querySelectorAll('.tab-panel')];
       const importXmlBtn1 = document.getElementById('importXmlBtn1');
