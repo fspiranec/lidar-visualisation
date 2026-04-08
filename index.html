@@ -405,6 +405,7 @@
       let selectedLoadType = '';
       let showLoad = false;
       let renderedFromCase = false;
+      const MIN_LOAD_Y_AXIS_MM = 1400;
 
       function refreshLoadSelectOptions() {
         loadTypeSelect.innerHTML = '';
@@ -843,6 +844,7 @@
 
         const activeLoad = showLoad ? LOAD_CONFIGS[selectedLoadType] : null;
         const loadWorldPoints = [];
+        const loadExpansionWorldRects = [];
         if (activeLoad) {
           const loadCenterY = lidar1Location.y + activeLoad.edgeYOffsetFromRearLeftLidar + (activeLoad.height / 2);
           const halfW = activeLoad.width / 2;
@@ -853,9 +855,32 @@
             { x: activeLoad.centerX + halfW, y: loadCenterY + halfH },
             { x: activeLoad.centerX - halfW, y: loadCenterY + halfH }
           );
+          if (activeLoad.height < MIN_LOAD_Y_AXIS_MM) {
+            const yExtraPerSide = (MIN_LOAD_Y_AXIS_MM - activeLoad.height) / 2;
+            loadExpansionWorldRects.push(
+              {
+                x: activeLoad.centerX - halfW,
+                y: loadCenterY - halfH - yExtraPerSide,
+                width: activeLoad.width,
+                height: yExtraPerSide
+              },
+              {
+                x: activeLoad.centerX - halfW,
+                y: loadCenterY + halfH,
+                width: activeLoad.width,
+                height: yExtraPerSide
+              }
+            );
+          }
         }
 
-        const allPoints = selectedFields.flatMap((f) => f.points).concat(loadWorldPoints, [
+        const expansionPoints = loadExpansionWorldRects.flatMap((rect) => ([
+          { x: rect.x, y: rect.y },
+          { x: rect.x + rect.width, y: rect.y },
+          { x: rect.x + rect.width, y: rect.y + rect.height },
+          { x: rect.x, y: rect.y + rect.height }
+        ]));
+        const allPoints = selectedFields.flatMap((f) => f.points).concat(loadWorldPoints, expansionPoints, [
           { x: lidar1Location.x, y: lidar1Location.y },
           { x: lidar2Location.x, y: lidar2Location.y }
         ]);
@@ -946,6 +971,39 @@
         });
 
         if (activeLoad && loadWorldPoints.length === 4) {
+          if (loadExpansionWorldRects.length > 0) {
+            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            const hatchPattern = document.createElementNS('http://www.w3.org/2000/svg', 'pattern');
+            hatchPattern.setAttribute('id', 'loadExpansionHatch');
+            hatchPattern.setAttribute('patternUnits', 'userSpaceOnUse');
+            hatchPattern.setAttribute('width', '8');
+            hatchPattern.setAttribute('height', '8');
+            hatchPattern.setAttribute('patternTransform', 'rotate(45)');
+            const hatchPath = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            hatchPath.setAttribute('x1', '0');
+            hatchPath.setAttribute('y1', '0');
+            hatchPath.setAttribute('x2', '0');
+            hatchPath.setAttribute('y2', '8');
+            hatchPath.setAttribute('stroke', '#ef4444');
+            hatchPath.setAttribute('stroke-width', '2');
+            hatchPattern.append(hatchPath);
+            defs.append(hatchPattern);
+            svg.append(defs);
+
+            loadExpansionWorldRects.forEach((rect) => {
+              const expansionRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+              expansionRect.setAttribute('x', String(centeredX(rect.x)));
+              expansionRect.setAttribute('y', String(centeredY(rect.y + rect.height)));
+              expansionRect.setAttribute('width', String(rect.width * scale));
+              expansionRect.setAttribute('height', String(rect.height * scale));
+              expansionRect.setAttribute('fill', 'url(#loadExpansionHatch)');
+              expansionRect.setAttribute('fill-opacity', '0.65');
+              expansionRect.setAttribute('stroke', '#ef4444');
+              expansionRect.setAttribute('stroke-width', '1.5');
+              svg.append(expansionRect);
+            });
+          }
+
           const loadPolygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
           loadPolygon.setAttribute('points', loadWorldPoints.map((p) => `${centeredX(p.x)},${centeredY(p.y)}`).join(' '));
           loadPolygon.setAttribute('fill', activeLoad.color);
