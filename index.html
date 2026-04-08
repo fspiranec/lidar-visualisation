@@ -167,6 +167,11 @@
             <option value="hd_v1">HD v1</option>
           </select>
         </div>
+        <div style="margin-bottom:12px;">
+          <label for="importLoadBtn">Load sizes (.txt)</label>
+          <button id="importLoadBtn" type="button">Import load size .txt</button>
+          <input id="importLoadInput" type="file" accept=".txt,text/plain" style="display:none;" />
+        </div>
         <div class="row" style="margin-bottom:6px;">
           <div style="font-size:20px; font-weight:700; color:#f1f5f9;">Safety fields</div>
           <div style="font-size:20px; font-weight:700; color:#f1f5f9;">Monitoring cases</div>
@@ -338,6 +343,8 @@
       const importCasesInput1 = document.getElementById('importCasesInput1');
       const importCasesBtn2 = document.getElementById('importCasesBtn2');
       const importCasesInput2 = document.getElementById('importCasesInput2');
+      const importLoadBtn = document.getElementById('importLoadBtn');
+      const importLoadInput = document.getElementById('importLoadInput');
       const vehicleVersionSelect = document.getElementById('vehicleVersionSelect');
       const fieldSelect2Label = document.getElementById('fieldSelect2Label');
       const loadTypeSelect = document.getElementById('loadTypeSelect');
@@ -350,14 +357,14 @@
       const lidar1Location = { x: 0, y: 0, label: 'rear left lidar' };
       const lidar2Offset = { x: -1165, y: -1661 };
       const lidar2Location = { x: lidar2Offset.x, y: lidar2Offset.y, label: 'front right lidar' };
-      const LOAD_CONFIGS = {
+      let LOAD_CONFIGS = {
         chep_48: {
           name: 'CHEP 48inch',
           width: 1220,
           height: 1220,
           color: '#ef4444',
           centerX: -620,
-          centerYOffsetFromRearLeftLidar: 337
+          centerYOffsetFromRearLeftLidar: -337
         }
       };
       const VERSION_CONFIGS = {
@@ -390,6 +397,45 @@
       let caseFrameMinimized = false;
       let selectedLoadType = '';
       let showLoad = false;
+
+      function refreshLoadSelectOptions() {
+        loadTypeSelect.innerHTML = '';
+        loadTypeSelect.append(new Option('None', ''));
+        Object.entries(LOAD_CONFIGS).forEach(([key, load]) => {
+          loadTypeSelect.append(new Option(`${load.name} (${load.width}x${load.height} mm)`, key));
+        });
+        if (selectedLoadType && LOAD_CONFIGS[selectedLoadType]) {
+          loadTypeSelect.value = selectedLoadType;
+        } else {
+          loadTypeSelect.value = '';
+          selectedLoadType = '';
+          showLoad = false;
+          toggleLoad.checked = false;
+        }
+      }
+
+      function parseLoadSizesText(text) {
+        const loads = [];
+        const chunks = text.split(/\n\s*\n/).map((v) => v.trim()).filter(Boolean);
+        chunks.forEach((chunk, idx) => {
+          const lines = chunk.split('\n').map((line) => line.trim()).filter(Boolean);
+          const nameLine = lines.find((line) => /^LoadType\s*:/i.test(line));
+          const xLine = lines.find((line) => /^X\s*:/i.test(line));
+          const yLine = lines.find((line) => /^Y\s*:/i.test(line));
+          if (!nameLine || !xLine || !yLine) return;
+          const nameRaw = nameLine.replace(/^LoadType\s*:/i, '').trim().replace(/^"+|"+$/g, '');
+          const width = Number(xLine.replace(/^X\s*:/i, '').replace(/mm$/i, '').trim());
+          const height = Number(yLine.replace(/^Y\s*:/i, '').replace(/mm$/i, '').trim());
+          if (!nameRaw || !Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return;
+          loads.push({
+            key: `${nameRaw.toLowerCase().replace(/[^a-z0-9]+/g, '_') || 'load'}_${idx + 1}`,
+            name: nameRaw,
+            width,
+            height
+          });
+        });
+        return loads;
+      }
 
       function setRenderedCaseBanner(caseNumber = null, caseName = '') {
         renderedCaseBanner.textContent = caseNumber
@@ -1161,6 +1207,9 @@
       importCasesBtn2.addEventListener('click', () => {
         importCasesInput2.click();
       });
+      importLoadBtn.addEventListener('click', () => {
+        importLoadInput.click();
+      });
 
       importXmlInput1.addEventListener('change', async (event) => {
         if (isHdV1Selected()) {
@@ -1237,6 +1286,37 @@
           setStatus(err instanceof Error ? err.message : 'Could not read Front Right monitoring cases XML.', true);
         } finally {
           importCasesInput2.value = '';
+        }
+      });
+
+      importLoadInput.addEventListener('change', async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        try {
+          const txt = await file.text();
+          const parsedLoads = parseLoadSizesText(txt);
+          if (parsedLoads.length === 0) {
+            setStatus('No valid loads found in .txt file. Expected LoadType, X, Y lines.', true);
+            return;
+          }
+          const nextConfigs = {};
+          parsedLoads.forEach((load) => {
+            nextConfigs[load.key] = {
+              name: load.name,
+              width: load.width,
+              height: load.height,
+              color: '#ef4444',
+              centerX: -620,
+              centerYOffsetFromRearLeftLidar: -337
+            };
+          });
+          LOAD_CONFIGS = nextConfigs;
+          refreshLoadSelectOptions();
+          setStatus(`Loaded ${parsedLoads.length} load type(s) from ${file.name}.`);
+        } catch (err) {
+          setStatus(err instanceof Error ? err.message : 'Could not read load size file.', true);
+        } finally {
+          importLoadInput.value = '';
         }
       });
 
@@ -1553,6 +1633,7 @@
       exportXmlBtn1.addEventListener('click', () => downloadXmlDoc(xmlDoc1, xmlFileName1));
       exportXmlBtn2.addEventListener('click', () => downloadXmlDoc(xmlDoc2, xmlFileName2));
       applyVehicleVersion(vehicleVersionSelect.value);
+      refreshLoadSelectOptions();
     </script>
   </body>
 </html>
