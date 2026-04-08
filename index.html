@@ -405,7 +405,7 @@
       let selectedLoadType = '';
       let showLoad = false;
       let renderedFromCase = false;
-      const MIN_LOAD_Y_AXIS_MM = 1400;
+      const MIN_LOAD_X_AXIS_MM = 1400;
 
       function refreshLoadSelectOptions() {
         loadTypeSelect.innerHTML = '';
@@ -855,20 +855,20 @@
             { x: activeLoad.centerX + halfW, y: loadCenterY + halfH },
             { x: activeLoad.centerX - halfW, y: loadCenterY + halfH }
           );
-          if (activeLoad.height < MIN_LOAD_Y_AXIS_MM) {
-            const yExtraPerSide = (MIN_LOAD_Y_AXIS_MM - activeLoad.height) / 2;
+          if (activeLoad.width < MIN_LOAD_X_AXIS_MM) {
+            const xExtraPerSide = (MIN_LOAD_X_AXIS_MM - activeLoad.width) / 2;
             loadExpansionWorldRects.push(
               {
-                x: activeLoad.centerX - halfW,
-                y: loadCenterY - halfH - yExtraPerSide,
-                width: activeLoad.width,
-                height: yExtraPerSide
+                x: activeLoad.centerX - halfW - xExtraPerSide,
+                y: loadCenterY - halfH,
+                width: xExtraPerSide,
+                height: activeLoad.height
               },
               {
-                x: activeLoad.centerX - halfW,
-                y: loadCenterY + halfH,
-                width: activeLoad.width,
-                height: yExtraPerSide
+                x: activeLoad.centerX + halfW,
+                y: loadCenterY - halfH,
+                width: xExtraPerSide,
+                height: activeLoad.height
               }
             );
           }
