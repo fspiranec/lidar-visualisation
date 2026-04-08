@@ -1,14 +1,12 @@
-## Official Release
-
 # Lidar Visualisation (Safety Fields) v1.0.0
 
 **Creator:** Franjo Spiranec / Codex
 
-Simple web app for visualising SICK safety fields from pasted XML content.
+Simple web app for visualising SICK safety fields from imported XML files.
 
 ## What it does now
 
-- Paste a safety field XML export (or import `.xml/.txt/.sdxml/.sdxlm` file directly) for **Rear Left Lidar** and/or **Front Right Lidar**.
+- Import safety field XML export files (`.sdxml`) for **Rear Left Lidar** and/or **Front Right Lidar**.
 - Parse `Fieldset > Field > Polygon Type="Field"` points.
 - List available fields for each lidar in separate dropdowns.
 - Render one or both selected fields as polygons in one SVG coordinate system.
@@ -17,7 +15,8 @@ Simple web app for visualising SICK safety fields from pasted XML content.
 - Draw lidar locations as yellow 50x50 markers: `rear left lidar` at `(0,0)` and `front right lidar` at `(-1180,-1650)`.
 - Include a measurement tool: click **Measure distance**, then click any two canvas points to get total distance plus absolute `Δx` and `Δy` in mm.
 - XML imports are parsed client-side only (no file storage/upload backend).
-- Add/paste monitoring cases XML for both lidars (supports `.casesxml`), choose a monitoring case once, and render matched fields from both lidar datasets for that same case number/name.
+- Import monitoring cases XML for both lidars (`.casesxml`), choose a monitoring case once, and render matched fields from both lidar datasets for that same case number/name.
+- UI is split into tabs (**Import**, **Visualisation**): import all files in one place, then do all selections/rendering in Visualisation.
 - Monitoring-case parsing prioritizes **case ID / number** nodes and searches under each case for field names that match the imported field list.
 - Uses SICK `.casesxml` mapping flow: reads `/SdImportExport/Cases/Case` (`Name`, `DisplayOrder`, `Activation/CaseNumber`) and matches eval paths via `/SdImportExport/Evals/Eval/Cases/Case[@Id=DisplayOrder]`, then reads `ScanPlanes/ScanPlane/UserFieldId`.
 - Monitoring case detail panel outputs a markdown table row with `CaseNumber`, `Name`, `DisplayOrder`, and 4 cut-off path cells in the format `UserFieldId = resolved field name` (or `not found`).
