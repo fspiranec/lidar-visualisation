@@ -550,7 +550,7 @@
           return [...xml.querySelectorAll(fallbackSelector)];
         };
         const userFieldNameById = new Map();
-        const normalizeId = (v) => String(v ?? '').trim().replace(/^0+(\d)/, '$1');
+        const normalizeId = (v) => String(v ?? '').trim().replace(/^0+(?=\d)/, '');
         const userFieldsetNodes = withFallback(
           'SdImportExport > FieldsConfiguration > ScanPlanes > ScanPlane > UserFieldsets > UserFieldset',
           'FieldsConfiguration ScanPlanes ScanPlane UserFieldsets UserFieldset'
@@ -612,17 +612,19 @@
 
             const normalizeText = (v) => String(v || '').toLowerCase().replace(/\s+/g, ' ').trim();
             const mappedFields = resolvedEntries.flatMap((entry) => {
-              const byUserFieldId = lidarFields.filter((f) => String(f.userFieldId || '').trim() === entry.id);
+              const byUserFieldId = lidarFields.filter((f) => normalizeId(f.userFieldId) === entry.id);
               if (byUserFieldId.length > 0) return byUserFieldId;
               if (!entry.resolvedName) return [];
               const split = entry.resolvedName.split('/').map((v) => v.trim());
               if (split.length >= 2) {
                 const resolvedFieldset = split[0];
                 const resolvedField = split.slice(1).join(' / ');
-                return lidarFields.filter((f) =>
+                const byFieldsetAndName = lidarFields.filter((f) =>
                   normalizeText(f.fieldsetName) === normalizeText(resolvedFieldset)
                   && normalizeText(f.fieldName) === normalizeText(resolvedField)
                 );
+                if (byFieldsetAndName.length > 0) return byFieldsetAndName;
+                return lidarFields.filter((f) => normalizeText(f.fieldName) === normalizeText(resolvedField));
               }
               return [];
             });
