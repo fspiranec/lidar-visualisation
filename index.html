@@ -208,7 +208,7 @@
             </select>
           </div>
           <div>
-            <label id="fieldSelect2Label" for="fieldSelect2">Front Right Lidar field from list (rotate 180° + location 1165, 1650)</label>
+            <label id="fieldSelect2Label" for="fieldSelect2">Front Right Lidar field from list (rotate 180° + location -1165, -1650)</label>
             <select id="fieldSelect2" disabled>
               <option value="">Import Front Right Lidar .sdxml first…</option>
             </select>
@@ -333,11 +333,11 @@
       const renderedCaseBanner = document.getElementById('renderedCaseBanner');
 
       const lidar1Location = { x: 0, y: 0, label: 'rear left lidar' };
-      const lidar2Offset = { x: 1165, y: 1650 };
+      const lidar2Offset = { x: -1165, y: -1650 };
       const lidar2Location = { x: lidar2Offset.x, y: lidar2Offset.y, label: 'front right lidar' };
       const VERSION_CONFIGS = {
-        md_v3: { label: 'MD v3', frontRight: { x: 1165, y: 1650 }, hasTwoLidars: true },
-        md_v2: { label: 'MD v2', frontRight: { x: 1165, y: 1650 }, hasTwoLidars: true },
+        md_v3: { label: 'MD v3', frontRight: { x: -1165, y: -1650 }, hasTwoLidars: true },
+        md_v2: { label: 'MD v2', frontRight: { x: -1165, y: -1650 }, hasTwoLidars: true },
         hd_v1: { label: 'HD v1', frontRight: null, hasTwoLidars: false }
       };
       let currentVehicleVersion = 'md_v3';
