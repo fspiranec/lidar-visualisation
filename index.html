@@ -1001,7 +1001,7 @@
         centralLine.setAttribute('x2', String(centeredX(-620)));
         centralLine.setAttribute('y2', String(centeredY(maxY)));
         centralLine.setAttribute('stroke', '#ef4444');
-        centralLine.setAttribute('stroke-width', '2');
+        centralLine.setAttribute('stroke-width', '1');
         centralLine.setAttribute('stroke-dasharray', '8 8');
         centralLine.setAttribute('vector-effect', 'non-scaling-stroke');
         svg.append(centralLine);
@@ -1020,7 +1020,7 @@
           const color = palette[idx % palette.length];
           poly.setAttribute('fill', color.fill);
           poly.setAttribute('stroke', color.stroke);
-          poly.setAttribute('stroke-width', '2');
+          poly.setAttribute('stroke-width', '1');
           svg.append(poly);
 
           for (let pointIdx = 0; pointIdx < field.points.length; pointIdx += 1) {
@@ -1063,7 +1063,7 @@
             hatchPath.setAttribute('x2', '0');
             hatchPath.setAttribute('y2', '8');
             hatchPath.setAttribute('stroke', '#ef4444');
-            hatchPath.setAttribute('stroke-width', '2');
+            hatchPath.setAttribute('stroke-width', '1');
             hatchPattern.append(hatchPath);
             defs.append(hatchPattern);
             svg.append(defs);
@@ -1077,7 +1077,7 @@
               expansionRect.setAttribute('fill', 'url(#loadExpansionHatch)');
               expansionRect.setAttribute('fill-opacity', '0.65');
               expansionRect.setAttribute('stroke', '#ef4444');
-              expansionRect.setAttribute('stroke-width', '1.5');
+              expansionRect.setAttribute('stroke-width', '0.75');
               svg.append(expansionRect);
             });
           }
@@ -1087,7 +1087,7 @@
           loadPolygon.setAttribute('fill', activeLoad.color);
           loadPolygon.setAttribute('fill-opacity', '0.8');
           loadPolygon.setAttribute('stroke', '#fca5a5');
-          loadPolygon.setAttribute('stroke-width', '2');
+          loadPolygon.setAttribute('stroke-width', '1');
           svg.append(loadPolygon);
 
           const loadCenterY = lidar1Location.y + activeLoad.edgeYOffsetFromRearLeftLidar + (activeLoad.height / 2);
@@ -1109,7 +1109,7 @@
           footprintPolygon.setAttribute('fill', activeVehicleFootprint.color);
           footprintPolygon.setAttribute('fill-opacity', '0.15');
           footprintPolygon.setAttribute('stroke', activeVehicleFootprint.color);
-          footprintPolygon.setAttribute('stroke-width', '2');
+          footprintPolygon.setAttribute('stroke-width', '1');
           footprintPolygon.setAttribute('stroke-dasharray', '10 6');
           svg.append(footprintPolygon);
         }
@@ -1120,7 +1120,7 @@
           forksPolygon.setAttribute('fill', activeForks.color);
           forksPolygon.setAttribute('fill-opacity', '0.18');
           forksPolygon.setAttribute('stroke', activeForks.color);
-          forksPolygon.setAttribute('stroke-width', '2');
+          forksPolygon.setAttribute('stroke-width', '1');
           svg.append(forksPolygon);
         }
 
@@ -1132,7 +1132,7 @@
           marker.setAttribute('r', '12.5');
           marker.setAttribute('fill', 'rgba(250, 204, 21, 0.35)');
           marker.setAttribute('stroke', '#facc15');
-          marker.setAttribute('stroke-width', '2');
+          marker.setAttribute('stroke-width', '1');
           svg.append(marker);
 
           const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -1226,7 +1226,7 @@
         line.setAttribute('x2', String(b.svgX));
         line.setAttribute('y2', String(b.svgY));
         line.setAttribute('stroke', '#f43f5e');
-        line.setAttribute('stroke-width', '2.5');
+        line.setAttribute('stroke-width', '1.25');
         measurementLayer.append(line);
 
         const distance = Math.hypot(b.x - a.x, b.y - a.y);
