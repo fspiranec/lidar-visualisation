@@ -241,6 +241,24 @@
             Show load
           </label>
         </div>
+        <div style="margin-bottom:12px; display:grid; grid-template-columns: 1fr auto auto; gap:12px; align-items:end;">
+          <div>
+            <label for="forkTypeSelect">Forks selector</label>
+            <select id="forkTypeSelect">
+              <option value="">None</option>
+              <option value="fork_42">Forks 42"</option>
+              <option value="fork_48">Forks 48"</option>
+            </select>
+          </div>
+          <label style="display:flex; align-items:center; gap:6px; font-size:14px; color:#cbd5e1; margin:0 0 10px 0;">
+            <input id="toggleVehicleFootprint" type="checkbox" />
+            Show vehicle footprint
+          </label>
+          <label style="display:flex; align-items:center; gap:6px; font-size:14px; color:#cbd5e1; margin:0 0 10px 0;">
+            <input id="toggleForks" type="checkbox" />
+            Show forks
+          </label>
+        </div>
         <div style="margin-bottom:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
           <button id="renderCaseBtn" type="button" disabled>Render monitoring case</button>
           <button id="toggleCaseFrameBtn" type="button">Minimize case details</button>
@@ -356,6 +374,9 @@
       const fieldSelect2Label = document.getElementById('fieldSelect2Label');
       const loadTypeSelect = document.getElementById('loadTypeSelect');
       const toggleLoad = document.getElementById('toggleLoad');
+      const forkTypeSelect = document.getElementById('forkTypeSelect');
+      const toggleVehicleFootprint = document.getElementById('toggleVehicleFootprint');
+      const toggleForks = document.getElementById('toggleForks');
       const statusEl = document.getElementById('status');
       const svg = document.getElementById('canvas');
       const legendPanel = document.getElementById('legendPanel');
@@ -378,6 +399,34 @@
         md_v3: { label: 'MD v3', frontRight: { x: -1165, y: -1661 }, hasTwoLidars: true },
         md_v2: { label: 'MD v2', frontRight: { x: -1165, y: -1650 }, hasTwoLidars: true },
         hd_v1: { label: 'HD v1', frontRight: null, hasTwoLidars: false }
+      };
+      const VEHICLE_FOOTPRINTS = {
+        md_v3: {
+          name: 'MD v3 vehicle footprint',
+          width: 1400,
+          length: 2248,
+          centerX: -620,
+          startYFromRearLeftLidar: -1916,
+          color: '#22c55e'
+        }
+      };
+      const FORK_CONFIGS = {
+        fork_42: {
+          name: 'Forks 42"',
+          width: 800,
+          length: 1070,
+          centerX: -620,
+          startYFromRearLeftLidar: 332,
+          color: '#f97316'
+        },
+        fork_48: {
+          name: 'Forks 48"',
+          width: 800,
+          length: 1220,
+          centerX: -620,
+          startYFromRearLeftLidar: 332,
+          color: '#f59e0b'
+        }
       };
       let currentVehicleVersion = 'md_v3';
       let fieldData1 = [];
@@ -405,6 +454,9 @@
       let selectedLoadType = '';
       let showLoad = false;
       let renderedFromCase = false;
+      let selectedForkType = '';
+      let showVehicleFootprint = false;
+      let showForks = false;
       const MIN_LOAD_X_AXIS_MM = 1400;
 
       function refreshLoadSelectOptions() {
@@ -843,8 +895,12 @@
         svg.setAttribute('viewBox', `${currentViewBox.x} ${currentViewBox.y} ${currentViewBox.width} ${currentViewBox.height}`);
 
         const activeLoad = showLoad ? LOAD_CONFIGS[selectedLoadType] : null;
+        const activeVehicleFootprint = showVehicleFootprint ? VEHICLE_FOOTPRINTS[currentVehicleVersion] : null;
+        const activeForks = showForks ? FORK_CONFIGS[selectedForkType] : null;
         const loadWorldPoints = [];
         const loadExpansionWorldRects = [];
+        const vehicleFootprintWorldPoints = [];
+        const forksWorldPoints = [];
         if (activeLoad) {
           const loadCenterY = lidar1Location.y + activeLoad.edgeYOffsetFromRearLeftLidar + (activeLoad.height / 2);
           const halfW = activeLoad.width / 2;
@@ -873,6 +929,28 @@
             );
           }
         }
+        if (activeVehicleFootprint) {
+          const footprintCenterY = lidar1Location.y + activeVehicleFootprint.startYFromRearLeftLidar + (activeVehicleFootprint.length / 2);
+          const halfW = activeVehicleFootprint.width / 2;
+          const halfL = activeVehicleFootprint.length / 2;
+          vehicleFootprintWorldPoints.push(
+            { x: activeVehicleFootprint.centerX - halfW, y: footprintCenterY - halfL },
+            { x: activeVehicleFootprint.centerX + halfW, y: footprintCenterY - halfL },
+            { x: activeVehicleFootprint.centerX + halfW, y: footprintCenterY + halfL },
+            { x: activeVehicleFootprint.centerX - halfW, y: footprintCenterY + halfL }
+          );
+        }
+        if (activeForks) {
+          const forksCenterY = lidar1Location.y + activeForks.startYFromRearLeftLidar + (activeForks.length / 2);
+          const halfW = activeForks.width / 2;
+          const halfL = activeForks.length / 2;
+          forksWorldPoints.push(
+            { x: activeForks.centerX - halfW, y: forksCenterY - halfL },
+            { x: activeForks.centerX + halfW, y: forksCenterY - halfL },
+            { x: activeForks.centerX + halfW, y: forksCenterY + halfL },
+            { x: activeForks.centerX - halfW, y: forksCenterY + halfL }
+          );
+        }
 
         const expansionPoints = loadExpansionWorldRects.flatMap((rect) => ([
           { x: rect.x, y: rect.y },
@@ -880,7 +958,7 @@
           { x: rect.x + rect.width, y: rect.y + rect.height },
           { x: rect.x, y: rect.y + rect.height }
         ]));
-        const allPoints = selectedFields.flatMap((f) => f.points).concat(loadWorldPoints, expansionPoints, [
+        const allPoints = selectedFields.flatMap((f) => f.points).concat(loadWorldPoints, expansionPoints, vehicleFootprintWorldPoints, forksWorldPoints, [
           { x: lidar1Location.x, y: lidar1Location.y },
           { x: lidar2Location.x, y: lidar2Location.y }
         ]);
@@ -923,7 +1001,7 @@
         centralLine.setAttribute('x2', String(centeredX(-620)));
         centralLine.setAttribute('y2', String(centeredY(maxY)));
         centralLine.setAttribute('stroke', '#ef4444');
-        centralLine.setAttribute('stroke-width', '2');
+        centralLine.setAttribute('stroke-width', '1');
         centralLine.setAttribute('stroke-dasharray', '8 8');
         centralLine.setAttribute('vector-effect', 'non-scaling-stroke');
         svg.append(centralLine);
@@ -942,7 +1020,7 @@
           const color = palette[idx % palette.length];
           poly.setAttribute('fill', color.fill);
           poly.setAttribute('stroke', color.stroke);
-          poly.setAttribute('stroke-width', '2');
+          poly.setAttribute('stroke-width', '1');
           svg.append(poly);
 
           for (let pointIdx = 0; pointIdx < field.points.length; pointIdx += 1) {
@@ -985,7 +1063,7 @@
             hatchPath.setAttribute('x2', '0');
             hatchPath.setAttribute('y2', '8');
             hatchPath.setAttribute('stroke', '#ef4444');
-            hatchPath.setAttribute('stroke-width', '2');
+            hatchPath.setAttribute('stroke-width', '1');
             hatchPattern.append(hatchPath);
             defs.append(hatchPattern);
             svg.append(defs);
@@ -999,7 +1077,7 @@
               expansionRect.setAttribute('fill', 'url(#loadExpansionHatch)');
               expansionRect.setAttribute('fill-opacity', '0.65');
               expansionRect.setAttribute('stroke', '#ef4444');
-              expansionRect.setAttribute('stroke-width', '1.5');
+              expansionRect.setAttribute('stroke-width', '0.75');
               svg.append(expansionRect);
             });
           }
@@ -1009,7 +1087,7 @@
           loadPolygon.setAttribute('fill', activeLoad.color);
           loadPolygon.setAttribute('fill-opacity', '0.8');
           loadPolygon.setAttribute('stroke', '#fca5a5');
-          loadPolygon.setAttribute('stroke-width', '2');
+          loadPolygon.setAttribute('stroke-width', '1');
           svg.append(loadPolygon);
 
           const loadCenterY = lidar1Location.y + activeLoad.edgeYOffsetFromRearLeftLidar + (activeLoad.height / 2);
@@ -1025,15 +1103,36 @@
           svg.append(loadLabel);
         }
 
+        if (activeVehicleFootprint && vehicleFootprintWorldPoints.length === 4) {
+          const footprintPolygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+          footprintPolygon.setAttribute('points', vehicleFootprintWorldPoints.map((p) => `${centeredX(p.x)},${centeredY(p.y)}`).join(' '));
+          footprintPolygon.setAttribute('fill', activeVehicleFootprint.color);
+          footprintPolygon.setAttribute('fill-opacity', '0.15');
+          footprintPolygon.setAttribute('stroke', activeVehicleFootprint.color);
+          footprintPolygon.setAttribute('stroke-width', '1');
+          footprintPolygon.setAttribute('stroke-dasharray', '10 6');
+          svg.append(footprintPolygon);
+        }
+
+        if (activeForks && forksWorldPoints.length === 4) {
+          const forksPolygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+          forksPolygon.setAttribute('points', forksWorldPoints.map((p) => `${centeredX(p.x)},${centeredY(p.y)}`).join(' '));
+          forksPolygon.setAttribute('fill', activeForks.color);
+          forksPolygon.setAttribute('fill-opacity', '0.18');
+          forksPolygon.setAttribute('stroke', activeForks.color);
+          forksPolygon.setAttribute('stroke-width', '1');
+          svg.append(forksPolygon);
+        }
+
         const lidarMarkers = [lidar1Location, lidar2Location];
         lidarMarkers.forEach((lidar) => {
           const marker = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
           marker.setAttribute('cx', centeredX(lidar.x));
           marker.setAttribute('cy', centeredY(lidar.y));
-          marker.setAttribute('r', '25');
+          marker.setAttribute('r', '12.5');
           marker.setAttribute('fill', 'rgba(250, 204, 21, 0.35)');
           marker.setAttribute('stroke', '#facc15');
-          marker.setAttribute('stroke-width', '2');
+          marker.setAttribute('stroke-width', '1');
           svg.append(marker);
 
           const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -1066,8 +1165,13 @@
           legendPanel.append(pill);
         });
 
-        const loadText = activeLoad ? ` + load ${activeLoad.name}` : '';
-        setStatus(`Rendered ${selectedFields.length} field(s): ${selectedFields.map((f) => f.label).join(', ')}${loadText}.`);
+        const optionalLayers = [
+          activeLoad ? `load ${activeLoad.name}` : '',
+          activeVehicleFootprint ? activeVehicleFootprint.name : '',
+          activeForks ? activeForks.name : ''
+        ].filter(Boolean);
+        const layersText = optionalLayers.length > 0 ? ` + ${optionalLayers.join(' + ')}` : '';
+        setStatus(`Rendered ${selectedFields.length} field(s): ${selectedFields.map((f) => f.label).join(', ')}${layersText}.`);
       }
 
       function svgClientToWorld(event) {
@@ -1122,7 +1226,7 @@
         line.setAttribute('x2', String(b.svgX));
         line.setAttribute('y2', String(b.svgY));
         line.setAttribute('stroke', '#f43f5e');
-        line.setAttribute('stroke-width', '2.5');
+        line.setAttribute('stroke-width', '1.25');
         measurementLayer.append(line);
 
         const distance = Math.hypot(b.x - a.x, b.y - a.y);
@@ -1457,6 +1561,40 @@
         if (lastRenderedFields.length > 0) renderField(lastRenderedFields, { preserveView: true });
       });
 
+      forkTypeSelect.addEventListener('change', () => {
+        selectedForkType = forkTypeSelect.value;
+        const hasSelectedForks = Boolean(FORK_CONFIGS[selectedForkType]);
+        if (!hasSelectedForks) {
+          showForks = false;
+          toggleForks.checked = false;
+        }
+        if (lastRenderedFields.length > 0) renderField(lastRenderedFields, { preserveView: true });
+      });
+
+      toggleVehicleFootprint.addEventListener('change', () => {
+        const hasVehicleFootprint = Boolean(VEHICLE_FOOTPRINTS[currentVehicleVersion]);
+        if (!hasVehicleFootprint) {
+          showVehicleFootprint = false;
+          toggleVehicleFootprint.checked = false;
+          setStatus(`Vehicle footprint is not configured for ${VERSION_CONFIGS[currentVehicleVersion]?.label || currentVehicleVersion}.`, true);
+          return;
+        }
+        showVehicleFootprint = toggleVehicleFootprint.checked;
+        if (lastRenderedFields.length > 0) renderField(lastRenderedFields, { preserveView: true });
+      });
+
+      toggleForks.addEventListener('change', () => {
+        if (!FORK_CONFIGS[forkTypeSelect.value]) {
+          toggleForks.checked = false;
+          showForks = false;
+          setStatus('Select a fork size first.', true);
+          return;
+        }
+        selectedForkType = forkTypeSelect.value;
+        showForks = toggleForks.checked;
+        if (lastRenderedFields.length > 0) renderField(lastRenderedFields, { preserveView: true });
+      });
+
       svg.addEventListener('click', (event) => {
         if (editMode) {
           const target = event.target;
@@ -1601,6 +1739,11 @@
 
       vehicleVersionSelect.addEventListener('change', () => {
         applyVehicleVersion(vehicleVersionSelect.value);
+        if (!VEHICLE_FOOTPRINTS[currentVehicleVersion]) {
+          showVehicleFootprint = false;
+          toggleVehicleFootprint.checked = false;
+        }
+        if (lastRenderedFields.length > 0) renderField(lastRenderedFields, { preserveView: true });
       });
 
       monitoringCaseSelect.addEventListener('change', () => {
