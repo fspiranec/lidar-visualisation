@@ -406,7 +406,7 @@
           width: 1400,
           length: 1916,
           centerX: -620,
-          startYFromRearLeftLidar: 332,
+          startYFromRearLeftLidar: -1916,
           color: '#22c55e'
         }
       };
@@ -1005,18 +1005,6 @@
         centralLine.setAttribute('stroke-dasharray', '8 8');
         centralLine.setAttribute('vector-effect', 'non-scaling-stroke');
         svg.append(centralLine);
-
-        const rearOffsetMarkerY = lidar1Location.y + 332;
-        const rearOffsetMarker = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        rearOffsetMarker.setAttribute('x1', String(centeredX(minX)));
-        rearOffsetMarker.setAttribute('y1', String(centeredY(rearOffsetMarkerY)));
-        rearOffsetMarker.setAttribute('x2', String(centeredX(maxX)));
-        rearOffsetMarker.setAttribute('y2', String(centeredY(rearOffsetMarkerY)));
-        rearOffsetMarker.setAttribute('stroke', '#ef4444');
-        rearOffsetMarker.setAttribute('stroke-width', '2');
-        rearOffsetMarker.setAttribute('stroke-dasharray', '8 8');
-        rearOffsetMarker.setAttribute('vector-effect', 'non-scaling-stroke');
-        svg.append(rearOffsetMarker);
 
         const palette = [
           { fill: 'rgba(34, 211, 238, 0.25)', stroke: '#22d3ee', point: '#f8fafc' },
