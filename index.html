@@ -133,9 +133,33 @@
         padding: 8px;
         border-radius: 8px;
       }
+      .rendered-fields-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .rendered-fields-column {
+        background:#0b1225;
+        border:1px solid rgba(148,163,184,0.35);
+        border-radius:10px;
+        padding:10px;
+      }
+      .rendered-fields-column h4 {
+        margin: 0 0 8px 0;
+        font-size: 15px;
+        color: #dbeafe;
+      }
+      .rendered-fields-column pre {
+        margin: 0;
+        white-space: pre-wrap;
+        color:#cbd5e1;
+        font-size:13px;
+        line-height:1.45;
+      }
       @media (max-width: 760px) {
         .row { grid-template-columns: 1fr; }
         .viz { min-height: 420px; }
+        .rendered-fields-grid { grid-template-columns: 1fr; }
       }
     </style>
   </head>
@@ -178,18 +202,6 @@
         </div>
         <div class="row">
           <div>
-            <label for="importXmlBtn1">Rear Left field (.sdxml)</label>
-            <button id="importXmlBtn1" type="button">Import Rear Left .sdxml</button>
-            <input id="importXmlInput1" type="file" accept=".sdxml" style="display:none;" />
-          </div>
-          <div>
-            <label for="importCasesBtn1">Rear Left monitoring (.casesxml)</label>
-            <button id="importCasesBtn1" type="button">Import Rear Left .casesxml</button>
-            <input id="importCasesInput1" type="file" accept=".casesxml" style="display:none;" />
-          </div>
-        </div>
-        <div class="row" style="margin-top:12px;">
-          <div>
             <label for="importXmlBtn2">Front Right field (.sdxml)</label>
             <button id="importXmlBtn2" type="button">Import Front Right .sdxml</button>
             <input id="importXmlInput2" type="file" accept=".sdxml" style="display:none;" />
@@ -198,6 +210,18 @@
             <label for="importCasesBtn2">Front Right monitoring (.casesxml)</label>
             <button id="importCasesBtn2" type="button">Import Front Right .casesxml</button>
             <input id="importCasesInput2" type="file" accept=".casesxml" style="display:none;" />
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px;">
+          <div>
+            <label for="importXmlBtn1">Rear Left field (.sdxml)</label>
+            <button id="importXmlBtn1" type="button">Import Rear Left .sdxml</button>
+            <input id="importXmlInput1" type="file" accept=".sdxml" style="display:none;" />
+          </div>
+          <div>
+            <label for="importCasesBtn1">Rear Left monitoring (.casesxml)</label>
+            <button id="importCasesBtn1" type="button">Import Rear Left .casesxml</button>
+            <input id="importCasesInput1" type="file" accept=".casesxml" style="display:none;" />
           </div>
         </div>
         <div class="hint" style="margin-top:10px;">After importing, switch to the Visualisation tab for all selections and rendering.</div>
@@ -279,7 +303,16 @@
           </div>
         </div>
         <div id="caseInfoFrame" style="margin-bottom:12px; display:grid; grid-template-columns: 1fr 240px; gap:12px; align-items:start;">
-          <pre id="caseDetails" style="white-space:pre-wrap; background:#0b1225; border:1px solid rgba(148,163,184,0.35); border-radius:10px; padding:10px; color:#cbd5e1; font-size:13px; line-height:1.45;">Monitoring case details will appear here.</pre>
+          <div class="rendered-fields-grid">
+            <div class="rendered-fields-column">
+              <h4>Front Right Lidar</h4>
+              <pre id="caseDetailsFront">Monitoring case details will appear here.</pre>
+            </div>
+            <div class="rendered-fields-column">
+              <h4>Rear Left Lidar</h4>
+              <pre id="caseDetailsRear">Monitoring case details will appear here.</pre>
+            </div>
+          </div>
           <div id="caseNumberBadge" style="background:#2b1130; border:2px solid #e879f9; border-radius:10px; padding:12px; color:#f5d0fe; font-size:15px; line-height:1.5;">
             Monitoring case: -
             <br/>
@@ -347,7 +380,8 @@
       const monitoringCaseSelect = document.getElementById('monitoringCaseSelect');
       const cutoffPathChecks = [...document.querySelectorAll('.cutoff-path-check')];
       const caseInfoFrame = document.getElementById('caseInfoFrame');
-      const caseDetails = document.getElementById('caseDetails');
+      const caseDetailsFront = document.getElementById('caseDetailsFront');
+      const caseDetailsRear = document.getElementById('caseDetailsRear');
       const caseNumberBadge = document.getElementById('caseNumberBadge');
       const measureBtn = document.getElementById('measureBtn');
       const clearMeasureBtn = document.getElementById('clearMeasureBtn');
@@ -651,7 +685,10 @@
           setStatus('Select at least one cut-off path checkbox.', true);
           return;
         }
-        const detailLines = [];
+        const detailLinesByLidar = {
+          'Front Right Lidar': [],
+          'Rear Left Lidar': []
+        };
         const caseNumInt = Number(parsedKey.caseNumber);
         const caseNumberBinary = Number.isFinite(caseNumInt) ? caseNumInt.toString(2).padStart(8, '0') : '--------';
         caseNumberBadge.innerHTML = `Monitoring case: ${parsedKey.caseNumber}<br/>Binary: ${caseNumberBinary}`;
@@ -659,14 +696,16 @@
         setRenderedCaseBanner(parsedKey.caseNumber, caseName);
 
         const selectedFields = caseEntries.flatMap((caseEntry) => {
-          detailLines.push(`Lidar: ${caseEntry.lidarLabel} | Name: ${caseEntry.caseLabel}`);
-          detailLines.push(`CaseNumber: ${caseEntry.caseNumber} | CaseId: ${caseEntry.caseObjectId} | DisplayOrder: ${caseEntry.displayOrder}`);
+          const lidarLines = detailLinesByLidar[caseEntry.lidarLabel] || [];
+          lidarLines.push(`Name: ${caseEntry.caseLabel}`);
+          lidarLines.push(`CaseNumber: ${caseEntry.caseNumber} | CaseId: ${caseEntry.caseObjectId} | DisplayOrder: ${caseEntry.displayOrder}`);
           const paths = caseEntry.cutOffPaths;
           for (let q = 1; q <= 8; q += 1) {
             const path = paths.find((p) => p.qIndex === q) || paths.find((p) => new RegExp(`cut-?off path\\s*${q}`, 'i').test(p.name)) || null;
-            detailLines.push(`Cut-off path ${q}: ${pathToCell(path)}`);
+            lidarLines.push(`Cut-off path ${q}: ${pathToCell(path)}`);
           }
-          detailLines.push('---');
+          lidarLines.push('---');
+          detailLinesByLidar[caseEntry.lidarLabel] = lidarLines;
 
           const filteredPaths = caseEntry.cutOffPaths.filter((path, idx) => {
             const byQ = path.qIndex && selectedPathNums.includes(path.qIndex);
@@ -684,7 +723,12 @@
           );
         });
         const uniqueSelectedFields = [...new Map(selectedFields.map((f) => [f.dedupeKey, f])).values()];
-        caseDetails.textContent = detailLines.join('\n');
+        caseDetailsFront.textContent = detailLinesByLidar['Front Right Lidar'].length > 0
+          ? detailLinesByLidar['Front Right Lidar'].join('\n')
+          : 'No Front Right Lidar details for this monitoring case.';
+        caseDetailsRear.textContent = detailLinesByLidar['Rear Left Lidar'].length > 0
+          ? detailLinesByLidar['Rear Left Lidar'].join('\n')
+          : 'No Rear Left Lidar details for this monitoring case.';
 
         if (uniqueSelectedFields.length === 0) {
           setStatus('No matching fields found under selected monitoring case for imported lidar fields.', true);
