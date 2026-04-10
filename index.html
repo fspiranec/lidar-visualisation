@@ -133,9 +133,32 @@
         padding: 8px;
         border-radius: 8px;
       }
+      .legend-split-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .legend-split-column {
+        background:#0b1225;
+        border:1px solid rgba(148,163,184,0.35);
+        border-radius:10px;
+        padding:10px;
+      }
+      .legend-split-column h4 {
+        margin: 0 0 8px 0;
+        font-size: 15px;
+        color: #dbeafe;
+      }
+      .legend-split-list {
+        display:flex;
+        gap:10px;
+        flex-wrap:wrap;
+        font-size:13px;
+      }
       @media (max-width: 760px) {
         .row { grid-template-columns: 1fr; }
         .viz { min-height: 420px; }
+        .legend-split-grid { grid-template-columns: 1fr; }
       }
     </style>
   </head>
@@ -178,18 +201,6 @@
         </div>
         <div class="row">
           <div>
-            <label for="importXmlBtn1">Rear Left field (.sdxml)</label>
-            <button id="importXmlBtn1" type="button">Import Rear Left .sdxml</button>
-            <input id="importXmlInput1" type="file" accept=".sdxml" style="display:none;" />
-          </div>
-          <div>
-            <label for="importCasesBtn1">Rear Left monitoring (.casesxml)</label>
-            <button id="importCasesBtn1" type="button">Import Rear Left .casesxml</button>
-            <input id="importCasesInput1" type="file" accept=".casesxml" style="display:none;" />
-          </div>
-        </div>
-        <div class="row" style="margin-top:12px;">
-          <div>
             <label for="importXmlBtn2">Front Right field (.sdxml)</label>
             <button id="importXmlBtn2" type="button">Import Front Right .sdxml</button>
             <input id="importXmlInput2" type="file" accept=".sdxml" style="display:none;" />
@@ -198,6 +209,18 @@
             <label for="importCasesBtn2">Front Right monitoring (.casesxml)</label>
             <button id="importCasesBtn2" type="button">Import Front Right .casesxml</button>
             <input id="importCasesInput2" type="file" accept=".casesxml" style="display:none;" />
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px;">
+          <div>
+            <label for="importXmlBtn1">Rear Left field (.sdxml)</label>
+            <button id="importXmlBtn1" type="button">Import Rear Left .sdxml</button>
+            <input id="importXmlInput1" type="file" accept=".sdxml" style="display:none;" />
+          </div>
+          <div>
+            <label for="importCasesBtn1">Rear Left monitoring (.casesxml)</label>
+            <button id="importCasesBtn1" type="button">Import Rear Left .casesxml</button>
+            <input id="importCasesInput1" type="file" accept=".casesxml" style="display:none;" />
           </div>
         </div>
         <div class="hint" style="margin-top:10px;">After importing, switch to the Visualisation tab for all selections and rendering.</div>
@@ -317,7 +340,16 @@
           <div id="editPointMeta" class="hint"></div>
         </div>
         <svg id="canvas" class="viz" viewBox="0 0 900 600" role="img" aria-label="Field visualisation"></svg>
-        <div id="legendPanel" style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; font-size:13px;"></div>
+        <div id="legendPanel" class="legend-split-grid" style="margin-top:10px;">
+          <div class="legend-split-column">
+            <h4>Front Right Lidar</h4>
+            <div id="legendPanelFront" class="legend-split-list"></div>
+          </div>
+          <div class="legend-split-column">
+            <h4>Rear Left Lidar</h4>
+            <div id="legendPanelRear" class="legend-split-list"></div>
+          </div>
+        </div>
       </section>
     </div>
 
@@ -380,6 +412,8 @@
       const statusEl = document.getElementById('status');
       const svg = document.getElementById('canvas');
       const legendPanel = document.getElementById('legendPanel');
+      const legendPanelFront = document.getElementById('legendPanelFront');
+      const legendPanelRear = document.getElementById('legendPanelRear');
       const renderedCaseBanner = document.getElementById('renderedCaseBanner');
 
       const lidar1Location = { x: 0, y: 0, label: 'rear left lidar' };
@@ -881,7 +915,8 @@
         const viewH = 600;
         const margin = 40;
         svg.innerHTML = '';
-        legendPanel.innerHTML = '';
+        legendPanelFront.innerHTML = '';
+        legendPanelRear.innerHTML = '';
         if (!preserveView) {
           zoomLevel = 1;
           currentViewBox = { x: 0, y: 0, width: viewW, height: viewH };
@@ -1162,7 +1197,13 @@
           const txt = document.createElement('span');
           txt.textContent = `${field.label}: ${field.fieldsetName} / ${field.fieldName}${field.polygonType ? ` (${field.polygonType})` : ''}`;
           pill.append(dot, txt);
-          legendPanel.append(pill);
+          if ((field.label || '').toLowerCase().includes('front right lidar')) {
+            legendPanelFront.append(pill);
+          } else if ((field.label || '').toLowerCase().includes('rear left lidar')) {
+            legendPanelRear.append(pill);
+          } else {
+            legendPanelFront.append(pill);
+          }
         });
 
         const optionalLayers = [
