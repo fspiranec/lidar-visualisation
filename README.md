@@ -43,6 +43,115 @@ python3 -m http.server 8080
 
 Then open <http://localhost:8080>.
 
+## Run with Docker
+
+Build the image:
+
+```bash
+docker build -t lidar-visualisation .
+```
+
+Run the container:
+
+```bash
+docker run -d --name lidar-visualisation --restart unless-stopped -p 8080:8080 lidar-visualisation
+```
+
+Check logs:
+
+```bash
+docker logs -f lidar-visualisation
+```
+
+Stop/remove container:
+
+```bash
+docker rm -f lidar-visualisation
+```
+
+Then open <http://localhost:8080>.
+
+## Full setup from a clean Ubuntu install (remote machine / bridged network)
+
+If your Ubuntu machine is fresh, use these exact steps.
+
+1. Update packages:
+
+```bash
+sudo apt update
+sudo apt upgrade -y
+```
+
+2. Install required tools:
+
+```bash
+sudo apt install -y ca-certificates curl gnupg lsb-release git
+```
+
+3. Install Docker Engine (official Docker repository):
+
+```bash
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo $VERSION_CODENAME) stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+```
+
+4. (Optional but recommended) Run Docker without `sudo`:
+
+```bash
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+5. Get the project on the Ubuntu machine:
+
+```bash
+git clone <YOUR_REPO_URL> lidar-visualisation
+cd lidar-visualisation
+```
+
+6. Build and run:
+
+```bash
+docker build -t lidar-visualisation .
+docker run -d --name lidar-visualisation --restart unless-stopped -p 8080:8080 lidar-visualisation
+```
+
+7. Verify it is running:
+
+```bash
+docker ps
+docker logs --tail=50 lidar-visualisation
+curl http://localhost:8080
+```
+
+8. If you access it from another machine over your bridged network, allow port `8080`:
+
+```bash
+sudo ufw allow 8080/tcp
+sudo ufw status
+```
+
+9. Find the Ubuntu machine IP and open it from your client machine:
+
+```bash
+ip -4 addr show
+```
+
+Then browse to:
+
+```text
+http://<UBUNTU_BRIDGED_IP>:8080
+```
+
 ## Deploy to Vercel
 
 1. Push this folder to a Git repository.
