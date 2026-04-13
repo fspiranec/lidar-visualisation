@@ -909,6 +909,75 @@
         return g;
       }
 
+      function renderGrid(viewW, viewH) {
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('id', 'backgroundGridLayer');
+        g.setAttribute('opacity', '0.35');
+
+        const zoomAdjustedMinorStep = Math.max(10, 40 / Math.max(zoomLevel, 1));
+        const majorStep = zoomAdjustedMinorStep * 5;
+
+        for (let x = 0; x <= viewW; x += zoomAdjustedMinorStep) {
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          line.setAttribute('x1', String(x));
+          line.setAttribute('y1', '0');
+          line.setAttribute('x2', String(x));
+          line.setAttribute('y2', String(viewH));
+          line.setAttribute('stroke', '#334155');
+          line.setAttribute('stroke-width', '0.5');
+          line.setAttribute('vector-effect', 'non-scaling-stroke');
+          g.append(line);
+        }
+
+        for (let y = 0; y <= viewH; y += zoomAdjustedMinorStep) {
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          line.setAttribute('x1', '0');
+          line.setAttribute('y1', String(y));
+          line.setAttribute('x2', String(viewW));
+          line.setAttribute('y2', String(y));
+          line.setAttribute('stroke', '#334155');
+          line.setAttribute('stroke-width', '0.5');
+          line.setAttribute('vector-effect', 'non-scaling-stroke');
+          g.append(line);
+        }
+
+        for (let x = 0; x <= viewW; x += majorStep) {
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          line.setAttribute('x1', String(x));
+          line.setAttribute('y1', '0');
+          line.setAttribute('x2', String(x));
+          line.setAttribute('y2', String(viewH));
+          line.setAttribute('stroke', '#475569');
+          line.setAttribute('stroke-width', '1');
+          line.setAttribute('vector-effect', 'non-scaling-stroke');
+          g.append(line);
+        }
+
+        for (let y = 0; y <= viewH; y += majorStep) {
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          line.setAttribute('x1', '0');
+          line.setAttribute('y1', String(y));
+          line.setAttribute('x2', String(viewW));
+          line.setAttribute('y2', String(y));
+          line.setAttribute('stroke', '#475569');
+          line.setAttribute('stroke-width', '1');
+          line.setAttribute('vector-effect', 'non-scaling-stroke');
+          g.append(line);
+        }
+
+        return g;
+      }
+
+      function refreshGridLayer(viewW = 900, viewH = 600) {
+        const existingGrid = document.getElementById('backgroundGridLayer');
+        const nextGrid = renderGrid(viewW, viewH);
+        if (!existingGrid) {
+          svg.prepend(nextGrid);
+          return;
+        }
+        existingGrid.replaceWith(nextGrid);
+      }
+
       function renderField(selectedFields, options = {}) {
         const preserveView = options.preserveView === true;
         const viewW = 900;
@@ -1028,6 +1097,7 @@
         clearMeasurement();
         setMeasureMode(false);
 
+        svg.append(renderGrid(viewW, viewH));
         svg.append(renderAxes(viewW, viewH, margin));
 
         const centralLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -1246,6 +1316,7 @@
         x = Math.max(0, Math.min(baseW - width, x));
         y = Math.max(0, Math.min(baseH - height, y));
         currentViewBox = { x, y, width, height };
+        refreshGridLayer(baseW, baseH);
         svg.setAttribute('viewBox', `${x} ${y} ${width} ${height}`);
         setStatus(`Zoom: ${zoomLevel.toFixed(1)}x`);
       }
