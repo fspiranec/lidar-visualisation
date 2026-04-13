@@ -95,6 +95,18 @@
         padding: 10px;
         border-radius: 10px;
       }
+      #allParamsEditor {
+        width: 100%;
+        min-height: 240px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: #0b1225;
+        color: #cbd5e1;
+        padding: 10px;
+        border-radius: 10px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 12px;
+        line-height: 1.45;
+      }
       label {
         display: block;
         font-size: 14px;
@@ -397,6 +409,12 @@
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
           <button id="applyParamsBtn" type="button">Apply parameters</button>
           <button id="resetParamsBtn" type="button">Reset defaults</button>
+          <button id="writeAllParamsBtn" type="button">Write all parameters</button>
+          <button id="applyAllParamsBtn" type="button">Apply JSON parameters</button>
+        </div>
+        <div style="margin-top:10px;">
+          <label for="allParamsEditor">All parameters (JSON)</label>
+          <textarea id="allParamsEditor"></textarea>
         </div>
         <p class="hint" style="margin-top:10px;">After apply, rendering and calculations use these values.</p>
       </section>
@@ -472,6 +490,9 @@
       const paramGridStepMax = document.getElementById('paramGridStepMax');
       const applyParamsBtn = document.getElementById('applyParamsBtn');
       const resetParamsBtn = document.getElementById('resetParamsBtn');
+      const writeAllParamsBtn = document.getElementById('writeAllParamsBtn');
+      const applyAllParamsBtn = document.getElementById('applyAllParamsBtn');
+      const allParamsEditor = document.getElementById('allParamsEditor');
 
       const lidar1Location = { x: 0, y: 0, label: 'rear left lidar' };
       const lidar2Offset = { x: -1165, y: -1661 };
@@ -569,6 +590,25 @@
         paramMinLoadXAxis.value = String(renderParams.minLoadXAxisMm);
         paramGridStepMin.value = String(renderParams.gridStepMmMin);
         paramGridStepMax.value = String(renderParams.gridStepMmMax);
+      }
+
+      function replaceObject(target, nextObj) {
+        Object.keys(target).forEach((key) => delete target[key]);
+        Object.assign(target, nextObj);
+      }
+
+      function buildAllParametersSnapshot() {
+        return {
+          renderParams: { ...renderParams },
+          versionConfigs: JSON.parse(JSON.stringify(VERSION_CONFIGS)),
+          loadConfigs: JSON.parse(JSON.stringify(LOAD_CONFIGS)),
+          vehicleFootprints: JSON.parse(JSON.stringify(VEHICLE_FOOTPRINTS)),
+          forkConfigs: JSON.parse(JSON.stringify(FORK_CONFIGS))
+        };
+      }
+
+      function syncAllParametersEditor() {
+        allParamsEditor.value = JSON.stringify(buildAllParametersSnapshot(), null, 2);
       }
 
       function refreshLoadSelectOptions() {
@@ -1742,6 +1782,7 @@
           });
           LOAD_CONFIGS = nextConfigs;
           refreshLoadSelectOptions();
+          syncAllParametersEditor();
           setStatus(`Loaded ${parsedLoads.length} load type(s) from ${file.name}.`);
         } catch (err) {
           setStatus(err instanceof Error ? err.message : 'Could not read load size file.', true);
@@ -2151,6 +2192,7 @@
         if (lastRenderedFields.length > 0) {
           renderField(lastRenderedFields, { preserveView: true });
         }
+        syncAllParametersEditor();
         setStatus('Rendering parameters updated.');
       });
 
@@ -2170,12 +2212,67 @@
         if (lastRenderedFields.length > 0) {
           renderField(lastRenderedFields, { preserveView: true });
         }
+        syncAllParametersEditor();
         setStatus('Rendering parameters reset to defaults.');
+      });
+
+      writeAllParamsBtn.addEventListener('click', () => {
+        syncAllParametersEditor();
+        setStatus('All parameters written to JSON editor.');
+      });
+
+      applyAllParamsBtn.addEventListener('click', () => {
+        try {
+          const parsed = JSON.parse(allParamsEditor.value);
+          if (!parsed || typeof parsed !== 'object') {
+            setStatus('Parameters JSON must be an object.', true);
+            return;
+          }
+          const nextRenderParams = {
+            ...renderParams,
+            ...(parsed.renderParams && typeof parsed.renderParams === 'object' ? parsed.renderParams : {})
+          };
+          if (!Number.isFinite(nextRenderParams.minLoadXAxisMm) || nextRenderParams.minLoadXAxisMm <= 0) {
+            setStatus('renderParams.minLoadXAxisMm must be a positive number.', true);
+            return;
+          }
+          if (!Number.isFinite(nextRenderParams.gridStepMmMin) || !Number.isFinite(nextRenderParams.gridStepMmMax) || nextRenderParams.gridStepMmMin <= 0 || nextRenderParams.gridStepMmMax < nextRenderParams.gridStepMmMin) {
+            setStatus('renderParams grid values are invalid.', true);
+            return;
+          }
+
+          Object.assign(renderParams, nextRenderParams);
+          if (parsed.versionConfigs && typeof parsed.versionConfigs === 'object') {
+            replaceObject(VERSION_CONFIGS, parsed.versionConfigs);
+          }
+          if (parsed.loadConfigs && typeof parsed.loadConfigs === 'object') {
+            LOAD_CONFIGS = parsed.loadConfigs;
+          }
+          if (parsed.vehicleFootprints && typeof parsed.vehicleFootprints === 'object') {
+            replaceObject(VEHICLE_FOOTPRINTS, parsed.vehicleFootprints);
+          }
+          if (parsed.forkConfigs && typeof parsed.forkConfigs === 'object') {
+            replaceObject(FORK_CONFIGS, parsed.forkConfigs);
+          }
+
+          syncParameterInputs();
+          refreshLoadSelectOptions();
+          applyVehicleVersion(currentVehicleVersion);
+          zoomLevel = Math.min(Math.max(1, zoomLevel), getGridZoomSteps());
+          if (lastRenderedFields.length > 0) {
+            renderField(lastRenderedFields, { preserveView: true });
+          }
+          syncAllParametersEditor();
+          setStatus('Applied all JSON parameters.');
+        } catch (err) {
+          setStatus(err instanceof Error ? `Invalid JSON: ${err.message}` : 'Invalid JSON in parameters editor.', true);
+        }
       });
 
       exportXmlBtn1.addEventListener('click', () => downloadXmlDoc(xmlDoc1, xmlFileName1));
       exportXmlBtn2.addEventListener('click', () => downloadXmlDoc(xmlDoc2, xmlFileName2));
       syncParameterInputs();
+      syncAllParametersEditor();
       applyVehicleVersion(vehicleVersionSelect.value);
       refreshLoadSelectOptions();
     </script>
