@@ -492,6 +492,8 @@
       let showVehicleFootprint = false;
       let showForks = false;
       const MIN_LOAD_X_AXIS_MM = 1400;
+      const GRID_STEP_MM_MIN = 50;
+      const GRID_STEP_MM_MAX = 500;
 
       function refreshLoadSelectOptions() {
         loadTypeSelect.innerHTML = '';
@@ -724,10 +726,11 @@
           setStatus('No matching fields found under selected monitoring case for imported lidar fields.', true);
           return;
         }
+        const hadPreviousView = lastRenderedFields.length > 0;
         lastRenderedFields = uniqueSelectedFields;
         renderedFromCase = true;
         editPanel.style.display = editMode ? 'flex' : 'none';
-        renderField(uniqueSelectedFields);
+        renderField(uniqueSelectedFields, { preserveView: hadPreviousView });
       }
 
       function shiftMonitoringCase(step) {
@@ -909,15 +912,47 @@
         return g;
       }
 
+      function worldToSvg(x, y) {
+        if (!currentTransform) return { x: 0, y: 0 };
+        return {
+          x: currentTransform.margin + (x - currentTransform.minX) * currentTransform.scale + currentTransform.centerShiftX,
+          y: currentTransform.viewH - currentTransform.margin - (y - currentTransform.minY) * currentTransform.scale - currentTransform.centerShiftY
+        };
+      }
+
+      function svgToWorld(x, y) {
+        if (!currentTransform) return { x: 0, y: 0 };
+        return {
+          x: currentTransform.minX + (x - currentTransform.margin - currentTransform.centerShiftX) / currentTransform.scale,
+          y: currentTransform.minY + ((currentTransform.viewH - currentTransform.margin - currentTransform.centerShiftY) - y) / currentTransform.scale
+        };
+      }
+
+      function getGridStepMm() {
+        const normalized = (Math.max(1, Math.min(5, zoomLevel)) - 1) / 4;
+        return GRID_STEP_MM_MAX - normalized * (GRID_STEP_MM_MAX - GRID_STEP_MM_MIN);
+      }
+
       function renderGrid(viewW, viewH) {
         const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         g.setAttribute('id', 'backgroundGridLayer');
         g.setAttribute('opacity', '0.35');
 
-        const zoomAdjustedMinorStep = Math.max(10, 40 / Math.max(zoomLevel, 1));
-        const majorStep = zoomAdjustedMinorStep * 5;
+        const { x: worldMinX } = svgToWorld(currentViewBox.x, currentViewBox.y + currentViewBox.height);
+        const { x: worldMaxX } = svgToWorld(currentViewBox.x + currentViewBox.width, currentViewBox.y);
+        const { y: worldMinY } = svgToWorld(currentViewBox.x, currentViewBox.y + currentViewBox.height);
+        const { y: worldMaxY } = svgToWorld(currentViewBox.x + currentViewBox.width, currentViewBox.y);
+        const gridStepMm = getGridStepMm();
+        const minorStep = Math.max(10, Math.round(gridStepMm / 2));
+        const majorStep = Math.round(gridStepMm);
 
-        for (let x = 0; x <= viewW; x += zoomAdjustedMinorStep) {
+        const firstMinorX = Math.floor(worldMinX / minorStep) * minorStep;
+        const firstMinorY = Math.floor(worldMinY / minorStep) * minorStep;
+        const firstMajorX = Math.floor(worldMinX / majorStep) * majorStep;
+        const firstMajorY = Math.floor(worldMinY / majorStep) * majorStep;
+
+        for (let xMm = firstMinorX; xMm <= worldMaxX + minorStep; xMm += minorStep) {
+          const { x } = worldToSvg(xMm, worldMinY);
           const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
           line.setAttribute('x1', String(x));
           line.setAttribute('y1', '0');
@@ -929,7 +964,8 @@
           g.append(line);
         }
 
-        for (let y = 0; y <= viewH; y += zoomAdjustedMinorStep) {
+        for (let yMm = firstMinorY; yMm <= worldMaxY + minorStep; yMm += minorStep) {
+          const { y } = worldToSvg(worldMinX, yMm);
           const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
           line.setAttribute('x1', '0');
           line.setAttribute('y1', String(y));
@@ -941,7 +977,8 @@
           g.append(line);
         }
 
-        for (let x = 0; x <= viewW; x += majorStep) {
+        for (let xMm = firstMajorX; xMm <= worldMaxX + majorStep; xMm += majorStep) {
+          const { x } = worldToSvg(xMm, worldMinY);
           const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
           line.setAttribute('x1', String(x));
           line.setAttribute('y1', '0');
@@ -953,7 +990,8 @@
           g.append(line);
         }
 
-        for (let y = 0; y <= viewH; y += majorStep) {
+        for (let yMm = firstMajorY; yMm <= worldMaxY + majorStep; yMm += majorStep) {
+          const { y } = worldToSvg(worldMinX, yMm);
           const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
           line.setAttribute('x1', '0');
           line.setAttribute('y1', String(y));
@@ -963,6 +1001,34 @@
           line.setAttribute('stroke-width', '1');
           line.setAttribute('vector-effect', 'non-scaling-stroke');
           g.append(line);
+        }
+
+        const axisLegendColor = '#94a3b8';
+        const leftLegendX = currentViewBox.x + 6;
+        const bottomLegendY = currentViewBox.y + currentViewBox.height - 6;
+        for (let yMm = firstMajorY; yMm <= worldMaxY + majorStep; yMm += majorStep) {
+          const { y } = worldToSvg(worldMinX, yMm);
+          if (y < currentViewBox.y || y > currentViewBox.y + currentViewBox.height) continue;
+          const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          txt.setAttribute('x', String(leftLegendX));
+          txt.setAttribute('y', String(y - 2));
+          txt.setAttribute('fill', axisLegendColor);
+          txt.setAttribute('font-size', '10');
+          txt.setAttribute('vector-effect', 'non-scaling-stroke');
+          txt.textContent = `${Math.round(yMm)}`;
+          g.append(txt);
+        }
+        for (let xMm = firstMajorX; xMm <= worldMaxX + majorStep; xMm += majorStep) {
+          const { x } = worldToSvg(xMm, worldMinY);
+          if (x < currentViewBox.x || x > currentViewBox.x + currentViewBox.width) continue;
+          const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          txt.setAttribute('x', String(x + 2));
+          txt.setAttribute('y', String(bottomLegendY));
+          txt.setAttribute('fill', axisLegendColor);
+          txt.setAttribute('font-size', '10');
+          txt.setAttribute('vector-effect', 'non-scaling-stroke');
+          txt.textContent = `${Math.round(xMm)}`;
+          g.append(txt);
         }
 
         return g;
@@ -1086,7 +1152,7 @@
         const centeredX = (x) => mapX(x) + centerShiftX;
         const centeredY = (y) => mapY(y) - centerShiftY;
         currentTransform = { minX, minY, scale, margin, viewH, centerShiftX, centerShiftY };
-        currentTransform.toSvg = (x, y) => ({ x: centeredX(x), y: centeredY(y) });
+        currentTransform.toSvg = (x, y) => worldToSvg(x, y);
         measureBtn.disabled = false;
         clearMeasureBtn.disabled = false;
         zoomInBtn.disabled = false;
