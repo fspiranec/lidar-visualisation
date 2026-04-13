@@ -82,6 +82,19 @@
         color: #bae6fd;
       }
       .tab-panel[hidden] { display: none; }
+      .params-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 10px;
+      }
+      .params-grid input[type="number"] {
+        width: 100%;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: var(--panel-light);
+        color: var(--text);
+        padding: 10px;
+        border-radius: 10px;
+      }
       label {
         display: block;
         font-size: 14px;
@@ -178,6 +191,7 @@
       <div class="tabs" role="tablist" aria-label="Workspace sections">
         <button class="tab-btn" type="button" role="tab" aria-selected="true" aria-controls="tab-import" id="tabBtnImport">1. Import</button>
         <button class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="tab-visual" id="tabBtnVisual">2. Visualisation</button>
+        <button class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="tab-params" id="tabBtnParams">3. Parameters</button>
       </div>
 
       <section class="card tab-panel" id="tab-import" role="tabpanel" aria-labelledby="tabBtnImport">
@@ -351,6 +365,41 @@
           </div>
         </div>
       </section>
+
+      <section class="card tab-panel" id="tab-params" role="tabpanel" aria-labelledby="tabBtnParams" hidden>
+        <h3 style="margin-top:0;">Rendering parameters</h3>
+        <div class="params-grid" style="margin-bottom:12px;">
+          <div>
+            <label for="paramFrontRightX">Front Right lidar offset X</label>
+            <input id="paramFrontRightX" type="number" step="1" />
+          </div>
+          <div>
+            <label for="paramFrontRightY">Front Right lidar offset Y</label>
+            <input id="paramFrontRightY" type="number" step="1" />
+          </div>
+          <div>
+            <label for="paramCenterLineX">Center line X</label>
+            <input id="paramCenterLineX" type="number" step="1" />
+          </div>
+          <div>
+            <label for="paramMinLoadXAxis">Minimum load X-axis (mm)</label>
+            <input id="paramMinLoadXAxis" type="number" step="1" min="1" />
+          </div>
+          <div>
+            <label for="paramGridStepMin">Grid step min (mm)</label>
+            <input id="paramGridStepMin" type="number" step="10" min="10" />
+          </div>
+          <div>
+            <label for="paramGridStepMax">Grid step max (mm)</label>
+            <input id="paramGridStepMax" type="number" step="10" min="10" />
+          </div>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button id="applyParamsBtn" type="button">Apply parameters</button>
+          <button id="resetParamsBtn" type="button">Reset defaults</button>
+        </div>
+        <p class="hint" style="margin-top:10px;">After apply, rendering and calculations use these values.</p>
+      </section>
     </div>
 
     <script src="version.js"></script>
@@ -415,17 +464,34 @@
       const legendPanelFront = document.getElementById('legendPanelFront');
       const legendPanelRear = document.getElementById('legendPanelRear');
       const renderedCaseBanner = document.getElementById('renderedCaseBanner');
+      const paramFrontRightX = document.getElementById('paramFrontRightX');
+      const paramFrontRightY = document.getElementById('paramFrontRightY');
+      const paramCenterLineX = document.getElementById('paramCenterLineX');
+      const paramMinLoadXAxis = document.getElementById('paramMinLoadXAxis');
+      const paramGridStepMin = document.getElementById('paramGridStepMin');
+      const paramGridStepMax = document.getElementById('paramGridStepMax');
+      const applyParamsBtn = document.getElementById('applyParamsBtn');
+      const resetParamsBtn = document.getElementById('resetParamsBtn');
 
       const lidar1Location = { x: 0, y: 0, label: 'rear left lidar' };
       const lidar2Offset = { x: -1165, y: -1661 };
       const lidar2Location = { x: lidar2Offset.x, y: lidar2Offset.y, label: 'front right lidar' };
+      const DEFAULT_RENDER_PARAMS = {
+        frontRightOffsetX: -1165,
+        frontRightOffsetY: -1661,
+        centerLineX: -620,
+        minLoadXAxisMm: 1400,
+        gridStepMmMin: 50,
+        gridStepMmMax: 500
+      };
+      const renderParams = { ...DEFAULT_RENDER_PARAMS };
       let LOAD_CONFIGS = {
         chep_48: {
           name: 'CHEP 48inch',
           width: 1220,
           height: 1220,
           color: '#ef4444',
-          centerX: -620,
+          centerX: renderParams.centerLineX,
           edgeYOffsetFromRearLeftLidar: 337
         }
       };
@@ -439,7 +505,7 @@
           name: 'MD v3 vehicle footprint',
           width: 1400,
           length: 2248,
-          centerX: -620,
+          centerX: renderParams.centerLineX,
           startYFromRearLeftLidar: -1916,
           color: '#22c55e'
         }
@@ -449,7 +515,7 @@
           name: 'Forks 42"',
           width: 800,
           length: 1070,
-          centerX: -620,
+          centerX: renderParams.centerLineX,
           startYFromRearLeftLidar: 332,
           color: '#f97316'
         },
@@ -457,7 +523,7 @@
           name: 'Forks 48"',
           width: 800,
           length: 1220,
-          centerX: -620,
+          centerX: renderParams.centerLineX,
           startYFromRearLeftLidar: 332,
           color: '#f59e0b'
         }
@@ -491,10 +557,19 @@
       let selectedForkType = '';
       let showVehicleFootprint = false;
       let showForks = false;
-      const MIN_LOAD_X_AXIS_MM = 1400;
-      const GRID_STEP_MM_MIN = 50;
-      const GRID_STEP_MM_MAX = 500;
-      const GRID_ZOOM_STEPS = Math.round((GRID_STEP_MM_MAX - GRID_STEP_MM_MIN) / 50) + 1;
+
+      function getGridZoomSteps() {
+        return Math.round((renderParams.gridStepMmMax - renderParams.gridStepMmMin) / 50) + 1;
+      }
+
+      function syncParameterInputs() {
+        paramFrontRightX.value = String(renderParams.frontRightOffsetX);
+        paramFrontRightY.value = String(renderParams.frontRightOffsetY);
+        paramCenterLineX.value = String(renderParams.centerLineX);
+        paramMinLoadXAxis.value = String(renderParams.minLoadXAxisMm);
+        paramGridStepMin.value = String(renderParams.gridStepMmMin);
+        paramGridStepMax.value = String(renderParams.gridStepMmMax);
+      }
 
       function refreshLoadSelectOptions() {
         loadTypeSelect.innerHTML = '';
@@ -606,11 +681,13 @@
           return;
         }
 
-        lidar2Offset.x = config.frontRight.x;
-        lidar2Offset.y = config.frontRight.y;
-        lidar2Location.x = config.frontRight.x;
-        lidar2Location.y = config.frontRight.y;
-        fieldSelect2Label.textContent = `Front Right Lidar field from list (rotate 180° + location ${config.frontRight.x}, ${config.frontRight.y})`;
+        const x = Number.isFinite(renderParams.frontRightOffsetX) ? renderParams.frontRightOffsetX : config.frontRight.x;
+        const y = Number.isFinite(renderParams.frontRightOffsetY) ? renderParams.frontRightOffsetY : config.frontRight.y;
+        lidar2Offset.x = x;
+        lidar2Offset.y = y;
+        lidar2Location.x = x;
+        lidar2Location.y = y;
+        fieldSelect2Label.textContent = `Front Right Lidar field from list (rotate 180° + location ${x}, ${y})`;
         setStatus(`${config.label} selected. Rear Left + Front Right lidar layout enabled.`);
       }
 
@@ -930,8 +1007,9 @@
       }
 
       function getGridStepMm() {
-        const clampedZoom = Math.max(1, Math.min(GRID_ZOOM_STEPS, Math.round(zoomLevel)));
-        return GRID_STEP_MM_MAX - ((clampedZoom - 1) * 50);
+        const gridZoomSteps = getGridZoomSteps();
+        const clampedZoom = Math.max(1, Math.min(gridZoomSteps, Math.round(zoomLevel)));
+        return renderParams.gridStepMmMax - ((clampedZoom - 1) * 50);
       }
 
       function renderGrid(viewW, viewH) {
@@ -1082,8 +1160,8 @@
             { x: activeLoad.centerX + halfW, y: loadCenterY + halfH },
             { x: activeLoad.centerX - halfW, y: loadCenterY + halfH }
           );
-          if (activeLoad.width < MIN_LOAD_X_AXIS_MM) {
-            const xExtraPerSide = (MIN_LOAD_X_AXIS_MM - activeLoad.width) / 2;
+          if (activeLoad.width < renderParams.minLoadXAxisMm) {
+            const xExtraPerSide = (renderParams.minLoadXAxisMm - activeLoad.width) / 2;
             loadExpansionWorldRects.push(
               {
                 x: activeLoad.centerX - halfW - xExtraPerSide,
@@ -1170,9 +1248,9 @@
         svg.append(renderAxes(viewW, viewH, margin));
 
         const centralLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        centralLine.setAttribute('x1', String(centeredX(-620)));
+        centralLine.setAttribute('x1', String(centeredX(renderParams.centerLineX)));
         centralLine.setAttribute('y1', String(centeredY(minY)));
-        centralLine.setAttribute('x2', String(centeredX(-620)));
+        centralLine.setAttribute('x2', String(centeredX(renderParams.centerLineX)));
         centralLine.setAttribute('y2', String(centeredY(maxY)));
         centralLine.setAttribute('stroke', '#ef4444');
         centralLine.setAttribute('stroke-width', '1');
@@ -1367,7 +1445,7 @@
 
       function applyZoom(nextZoomLevel, focusSvgPoint = null) {
         if (!currentTransform) return;
-        zoomLevel = Math.max(1, Math.min(GRID_ZOOM_STEPS, Math.round(nextZoomLevel)));
+        zoomLevel = Math.max(1, Math.min(getGridZoomSteps(), Math.round(nextZoomLevel)));
         const baseW = 900;
         const baseH = 600;
         const width = baseW / zoomLevel;
@@ -1658,7 +1736,7 @@
               width: load.width,
               height: load.height,
               color: '#ef4444',
-              centerX: -620,
+              centerX: renderParams.centerLineX,
               edgeYOffsetFromRearLeftLidar: 337
             };
           });
@@ -2037,8 +2115,67 @@
         setStatus('Last edit undone.');
       });
 
+      applyParamsBtn.addEventListener('click', () => {
+        const nextFrontRightX = Number(paramFrontRightX.value);
+        const nextFrontRightY = Number(paramFrontRightY.value);
+        const nextCenterLineX = Number(paramCenterLineX.value);
+        const nextMinLoadXAxis = Number(paramMinLoadXAxis.value);
+        const nextGridStepMin = Number(paramGridStepMin.value);
+        const nextGridStepMax = Number(paramGridStepMax.value);
+        const numericValues = [nextFrontRightX, nextFrontRightY, nextCenterLineX, nextMinLoadXAxis, nextGridStepMin, nextGridStepMax];
+        if (numericValues.some((v) => !Number.isFinite(v))) {
+          setStatus('All parameter values must be valid numbers.', true);
+          return;
+        }
+        if (nextMinLoadXAxis <= 0 || nextGridStepMin <= 0 || nextGridStepMax <= 0 || nextGridStepMax < nextGridStepMin) {
+          setStatus('Use positive values and keep grid max >= grid min.', true);
+          return;
+        }
+        renderParams.frontRightOffsetX = Math.round(nextFrontRightX);
+        renderParams.frontRightOffsetY = Math.round(nextFrontRightY);
+        renderParams.centerLineX = Math.round(nextCenterLineX);
+        renderParams.minLoadXAxisMm = Math.round(nextMinLoadXAxis);
+        renderParams.gridStepMmMin = Math.round(nextGridStepMin / 10) * 10;
+        renderParams.gridStepMmMax = Math.round(nextGridStepMax / 10) * 10;
+        zoomLevel = Math.min(zoomLevel, getGridZoomSteps());
+        applyVehicleVersion(currentVehicleVersion);
+        Object.values(LOAD_CONFIGS).forEach((cfg) => {
+          cfg.centerX = renderParams.centerLineX;
+        });
+        Object.values(VEHICLE_FOOTPRINTS).forEach((cfg) => {
+          cfg.centerX = renderParams.centerLineX;
+        });
+        Object.values(FORK_CONFIGS).forEach((cfg) => {
+          cfg.centerX = renderParams.centerLineX;
+        });
+        if (lastRenderedFields.length > 0) {
+          renderField(lastRenderedFields, { preserveView: true });
+        }
+        setStatus('Rendering parameters updated.');
+      });
+
+      resetParamsBtn.addEventListener('click', () => {
+        Object.assign(renderParams, DEFAULT_RENDER_PARAMS);
+        syncParameterInputs();
+        applyVehicleVersion(currentVehicleVersion);
+        Object.values(LOAD_CONFIGS).forEach((cfg) => {
+          cfg.centerX = renderParams.centerLineX;
+        });
+        Object.values(VEHICLE_FOOTPRINTS).forEach((cfg) => {
+          cfg.centerX = renderParams.centerLineX;
+        });
+        Object.values(FORK_CONFIGS).forEach((cfg) => {
+          cfg.centerX = renderParams.centerLineX;
+        });
+        if (lastRenderedFields.length > 0) {
+          renderField(lastRenderedFields, { preserveView: true });
+        }
+        setStatus('Rendering parameters reset to defaults.');
+      });
+
       exportXmlBtn1.addEventListener('click', () => downloadXmlDoc(xmlDoc1, xmlFileName1));
       exportXmlBtn2.addEventListener('click', () => downloadXmlDoc(xmlDoc2, xmlFileName2));
+      syncParameterInputs();
       applyVehicleVersion(vehicleVersionSelect.value);
       refreshLoadSelectOptions();
     </script>
