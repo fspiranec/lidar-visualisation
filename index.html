@@ -514,22 +514,34 @@
 
       function parseLoadSizesText(text) {
         const loads = [];
+        const BASE_EDGE_Y_OFFSET_FROM_REAR_LEFT_LIDAR = 332;
         const chunks = text.split(/\n\s*\n/).map((v) => v.trim()).filter(Boolean);
         chunks.forEach((chunk, idx) => {
           const lines = chunk.split('\n').map((line) => line.trim()).filter(Boolean);
           const nameLine = lines.find((line) => /^LoadType\s*:/i.test(line));
+          const loadOffsetLine = lines.find((line) => /^LoadOffset\s*:/i.test(line));
           const xLine = lines.find((line) => /^X\s*:/i.test(line));
           const yLine = lines.find((line) => /^Y\s*:/i.test(line));
           if (!nameLine || !xLine || !yLine) return;
           const nameRaw = nameLine.replace(/^LoadType\s*:/i, '').trim().replace(/^"+|"+$/g, '');
+          const loadOffset = loadOffsetLine
+            ? Number(loadOffsetLine.replace(/^LoadOffset\s*:/i, '').replace(/mm$/i, '').trim())
+            : 0;
           const width = Number(xLine.replace(/^X\s*:/i, '').replace(/mm$/i, '').trim());
           const height = Number(yLine.replace(/^Y\s*:/i, '').replace(/mm$/i, '').trim());
-          if (!nameRaw || !Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return;
+          if (!nameRaw
+            || !Number.isFinite(loadOffset)
+            || !Number.isFinite(width)
+            || !Number.isFinite(height)
+            || width <= 0
+            || height <= 0
+          ) return;
           loads.push({
             key: `${nameRaw.toLowerCase().replace(/[^a-z0-9]+/g, '_') || 'load'}_${idx + 1}`,
             name: nameRaw,
             width,
-            height
+            height,
+            edgeYOffsetFromRearLeftLidar: BASE_EDGE_Y_OFFSET_FROM_REAR_LEFT_LIDAR + loadOffset
           });
         });
         return loads;
@@ -1648,7 +1660,7 @@
           const txt = await file.text();
           const parsedLoads = parseLoadSizesText(txt);
           if (parsedLoads.length === 0) {
-            setStatus('No valid loads found in .txt file. Expected LoadType, X, Y lines.', true);
+            setStatus('No valid loads found in .txt file. Expected LoadType, LoadOffset, X, Y lines.', true);
             return;
           }
           const nextConfigs = {};
@@ -1659,7 +1671,7 @@
               height: load.height,
               color: '#ef4444',
               centerX: -620,
-              edgeYOffsetFromRearLeftLidar: 337
+              edgeYOffsetFromRearLeftLidar: load.edgeYOffsetFromRearLeftLidar
             };
           });
           LOAD_CONFIGS = nextConfigs;
