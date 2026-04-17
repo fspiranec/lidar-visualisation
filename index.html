@@ -1084,6 +1084,7 @@
         const loadExpansionWorldRects = [];
         const vehicleFootprintWorldPoints = [];
         const forksWorldPoints = [];
+        const dynamicScaleMarkers = [];
         if (activeLoad) {
           const loadCenterY = lidar1Location.y + activeLoad.edgeYOffsetFromRearLeftLidar + (activeLoad.height / 2);
           const halfW = activeLoad.width / 2;
@@ -1111,6 +1112,16 @@
               }
             );
           }
+
+          const loadEndY = lidar1Location.y + activeLoad.edgeYOffsetFromRearLeftLidar;
+          const standstillY = loadEndY + 220;
+          dynamicScaleMarkers.push(
+            { label: 'Standstill', y: standstillY },
+            { label: 'BW1', y: standstillY + 275 },
+            { label: 'BW2', y: standstillY + 275 + 200 },
+            { label: 'BW3', y: standstillY + 275 + 200 + 210 },
+            { label: 'BW4', y: standstillY + 275 + 200 + 210 + 310 }
+          );
         }
         if (activeVehicleFootprint) {
           const footprintCenterY = lidar1Location.y + activeVehicleFootprint.startYFromRearLeftLidar + (activeVehicleFootprint.length / 2);
@@ -1143,7 +1154,11 @@
         ]));
         const allImportedFieldPoints = fieldData1.flatMap((f) => f.points).concat(fieldData2.flatMap((f) => f.points));
         const baseFieldPoints = allImportedFieldPoints.length > 0 ? allImportedFieldPoints : selectedFields.flatMap((f) => f.points);
-        const allPoints = baseFieldPoints.concat(loadWorldPoints, expansionPoints, vehicleFootprintWorldPoints, forksWorldPoints, [
+        const dynamicScaleWorldPoints = dynamicScaleMarkers.map((marker) => ({
+          x: lidar1Location.x,
+          y: marker.y
+        }));
+        const allPoints = baseFieldPoints.concat(loadWorldPoints, expansionPoints, vehicleFootprintWorldPoints, forksWorldPoints, dynamicScaleWorldPoints, [
           { x: lidar1Location.x, y: lidar1Location.y },
           { x: lidar2Location.x, y: lidar2Location.y }
         ]);
@@ -1235,6 +1250,31 @@
         });
 
         if (activeLoad && loadWorldPoints.length === 4) {
+          if (dynamicScaleMarkers.length > 0) {
+            dynamicScaleMarkers.forEach((marker) => {
+              const scaleLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+              scaleLine.setAttribute('x1', '0');
+              scaleLine.setAttribute('y1', String(centeredY(marker.y)));
+              scaleLine.setAttribute('x2', String(viewW));
+              scaleLine.setAttribute('y2', String(centeredY(marker.y)));
+              scaleLine.setAttribute('stroke', '#f97316');
+              scaleLine.setAttribute('stroke-width', '1.25');
+              scaleLine.setAttribute('stroke-dasharray', '8 6');
+              scaleLine.setAttribute('vector-effect', 'non-scaling-stroke');
+              svg.append(scaleLine);
+
+              const scaleLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+              scaleLabel.setAttribute('x', '8');
+              scaleLabel.setAttribute('y', String(centeredY(marker.y) - 4));
+              scaleLabel.setAttribute('fill', '#fdba74');
+              scaleLabel.setAttribute('font-size', '12');
+              scaleLabel.setAttribute('font-weight', '700');
+              scaleLabel.setAttribute('vector-effect', 'non-scaling-stroke');
+              scaleLabel.textContent = marker.label;
+              svg.append(scaleLabel);
+            });
+          }
+
           if (loadExpansionWorldRects.length > 0) {
             const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
             const hatchPattern = document.createElementNS('http://www.w3.org/2000/svg', 'pattern');
