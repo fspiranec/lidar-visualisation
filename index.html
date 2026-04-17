@@ -1113,8 +1113,8 @@
             );
           }
 
-          const loadEndY = lidar1Location.y + activeLoad.edgeYOffsetFromRearLeftLidar;
-          const standstillY = loadEndY + 220;
+          const loadFarEndY = lidar1Location.y + activeLoad.edgeYOffsetFromRearLeftLidar + activeLoad.height;
+          const standstillY = loadFarEndY + 220;
           dynamicScaleMarkers.push(
             { label: 'Standstill', y: standstillY },
             { label: 'BW1', y: standstillY + 275 },
